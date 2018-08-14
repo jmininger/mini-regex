@@ -1,65 +1,114 @@
 '''
-	Small recursive descent parser for regex
+Small recursive descent parser for regex
 
-	IN: tokens, OUT: AST
-
-	ab = 	&
-		  |   |
-		  a   b
-
+IN: tokens, OUT: AST
 
 CFG for regular expressions:
-	E -> TE`
-	E`-> '|'E | e
-	T -> FT`
-	T`-> T | e
-	F -> CF`
-	F`-> '*' | e
-	C -> char
+E -> TE`
+E`-> '|'E | e
+T -> FT`
+T`-> T | e
+F -> CF`
+F`-> '*' | e
+C -> char | ( E )
 
 
-Grammar can be used as a tree like structure: 
-AST should only have op and operands and a tree like structure...operands should be values...nothing else in the tree is neccessary
+Grammar can be used as a tree like structure:
+AST should only have op and operands and a tree like structure...operands
+should be values...nothing else in the tree is neccessary
 '''
+
+from collections import namedtuple
+
+NodeType = namedtuple('NodeType', ['op', 'val'])
+
+
+def ParseExp(stream):
+    tok = stream.next()
+    if tok == 'CHAR' or tok == 'LPAREN':
+        t = ParseTerm(stream)
+        e = ParseExp2(stream)
+        # if e = command or + automata, evaluate t or e
+        # else return t
+        # Return types return both an operator and an automata where both can
+        # be None
+    else:
+        return 'ERROR'
+
+
+def ParseExp2(stream):
+    tok = stream.next()
+    if tok == 'OR':
+        return NodeType('OR', parseExp(stream))
+    elif tok == 'END' or tok == 'LPAREN':
+        return NodeType('NONE', None)
+    else:
+        return NodeType('ERROR', None)
+
+
+def ParseTerm(stream):
+    tok = stream.next()
+    if tok == 'CHAR' or tok == 'LPAREN':
+        f = parseFactor(stream)
+        t2 = parseTerm2(stream)
+        return ANDCtor(f, t2)
+    else:
+        return NodeType('ERROR', None)
+
+
+def ParseTerm2(stream):
+    tok = stream.next()
+    if tok in ['CHAR', 'LPAREN']:
+        pass
+    elif tok in ['RPAREN', 'OR', 'END']:
+        return NodeType('NONE', None)
+    else:
+        return NodeType('ERROR', None)
+
+
+def ParseFactor(stream):
+    tok = stream.next()
+    if tok == 'CHAR' or tok == 'LPAREN':
+        c = parseChar(stream)
+        f2 = parseFactor2(stream)
+        return KleeneOp(c)
+    else:
+        return NodeType('ERROR', None)
+
+
+def ParseFactor2(stream):
+    tok = stream.next()
+    if tok == 'STAR':
+        return NodeType('STAR', None)
+    else:
+        return NodeType('NONE', None)
+
+
+def ParseChar(stream):
+    tok = stream.next()
+    if tok == 'CHAR':
+        return Automata(tok.getVal())
+    elif tok == 'LPAREN':
+        e = parseExp(stream)
+        tok = stream.getNext()
+        if tok == 'RPAREN':
+            return e
+        else:
+            return NodeType('ERROR', None)
+    else:
+        return NodeType('ERROR', None)
+
+
+
 from abc import ABCMeta
 
+from enum import Enum
 import unittest as ut
 
-class Token:
-	def __init__(self, val):
-		self._val = val
-	# how to define an isEquals func that works for "is/not" builtins?
+class TokenType(Enum):
+	Operator = 1
+	Char = 2
 
-
- class GrammarString:
- 	def __init__(self):
- 		self._constituents = []
-
- 	def match(tokens):
- 		for elem in _constituents:
- 			if not elem.match(tokens)
- 				return False
- 		return True
-
-class Terminal(GrammarElement):
-	def __init__(self, tok):
-		self._val = tok
-	
-	def match(toks):
-		return toks.get() == _val
-
-		#certain terminals need to get functions to call when they are found
-
-
- class NonTerminal(GrammarElement): #Same as a prodcuction, no difference
- 	def __init__(self):
- 		self._strings = [] #grammar strings
- 	
- 	def match(toks):
- 		for elem in _strings:
- 			if elem.match(toks)
- 				return True
- 		return False
 
 
 #instead of returning booleans, return an ast
@@ -77,24 +126,8 @@ class ASTNode:
 	bool CheckP()
 
 	Construct.check -> calls other constructs in it and checks recursively
-'''
-def CheckProduction(prod, tok_stream, ptree):
-	for i in prod.constructs:
-		return check_i()
-def CheckGrammarString(gstring, tok_stream, ptree) 
-	for i in gstring:
-		if(i.match(t_stream)):
-			i.action()
-			return True
-	return False
-
-def Parse(pattern):
-	for p in Grammar.start._productions:
-		testP
-	return AST()
-
- '''
- 	Productions and grammar datastructures should be immutable
+ 	
+        Productions and grammar datastructures should be immutable
  	Build the tree up and add to an element once you get a connecting point. Be prepared
  		to remove a node from the tree when it is not 
 

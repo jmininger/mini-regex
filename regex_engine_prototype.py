@@ -1,11 +1,11 @@
 import unittest
 
-''' 
+'''
     NEED AN EPSILON TRANSITION
 
     Composite Pattern: Automata vs State
     Automata and State both have a begin and end, and then have transitions?
-    You can feed both of them a single 
+    You can feed both of them a single
     BOTH NEED:
         Matches (stream)/run(stream)
 
@@ -23,10 +23,8 @@ import unittest
 #         self._transitions = {}
 #         self._epsilons = []
 #         self._is_end = False
-    
 #     def addTransition(char, next_state):
 #         _transitions[char] = next_state
-    
 #     def addEpsilon(next_state):
 #         _epsilons.append(next_state)
 
@@ -34,9 +32,9 @@ import unittest
 #         return _transitions[char]
 
 class Automata:
-    def match(str):   
+    def match(str):
         pass
-    
+
     def matchFirst(str):
         pass
 
@@ -58,7 +56,7 @@ class Automata:
 #             self._finish.addEpsilon(e)
 #         self._finish = nfa._finish
 
-        
+
 #     transitions = {
 #         "concat": concatTransition,
 #         "union":  unionTransition,
@@ -71,7 +69,6 @@ class Automata:
 #         self._finish = State()
 #         _start.addEpsilon(_finish)
 #         self._current = _start
-    
 #     def addTransition(enum, elem):
 #         transitions[enum](elem)
 
@@ -110,7 +107,7 @@ class GrammarConstruct:
         pass
 class Terminal(GrammarConstruct):
     pass
-class NonTerminal(GrammarConstruct): 
+class NonTerminal(GrammarConstruct):
     pass
 class AST:
     pass
