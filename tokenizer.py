@@ -2,6 +2,9 @@ import unittest as ut
 
 
 class Token:
+    """
+        Represents the basic unit of an expression that the parser accepts
+    """
     tok_types = ['CHAR', 'LPAREN', 'RPAREN', 'OR', 'STAR', 'END', 'METACHAR']
 
     def __init__(self, val, tok_type, loc):
@@ -13,87 +16,104 @@ class Token:
             pass
         # TODO Figure out how to throw exception here
 
-    def __str__(self):
-        return str(self._val, self._tok_type)
+    @property
+    def tok_type(self):
+        return self._tok_type
 
     def __eq__(self, other):
         return self._val == other._val and self._tok_type == other._tok_type
 
-    def isCharType(self):
+    def __str__(self):
+        return "val: " + str(self._val) + ", type: " + str(self._tok_type) \
+                + ", location, len: " + str(self._loc)
+
+    def is_char_type(self):
         return self._tok_type in ['CHAR', 'METACHAR']
 
-    def isOperatorType(self):
+    def is_operator_type(self):
         return self._tok_type in ['OR', 'STAR']
+
+    def is_end_type(self):
+        return self._tok_type == 'END'
 
 
 class TestTokens(ut.TestCase):
-    def testEquality(self):
+    def test_equality(self):
         t1 = Token('a', 'CHAR', 1)
         t2 = Token('a', 'CHAR', 2)
         t3 = Token('b', 'CHAR', 3)
         self.assertEqual(t1, t2)
         self.assertNotEqual(t1, t3)
 
-    def testTypeChecks(self):
+    def test_type_checks(self):
         t1 = Token('a', 'CHAR', 1)
         t2 = Token('.', 'METACHAR', 2)
         t3 = Token('|', 'OR', 3)
-        self.assertTrue(t1.isCharType())
-        self.assertTrue(t2.isCharType())
-        self.assertTrue(t3.isOperatorType())
-        self.assertFalse(t1.isOperatorType())
-        self.assertFalse(t3.isCharType())
+        self.assertTrue(t1.is_char_type())
+        self.assertTrue(t2.is_char_type())
+        self.assertTrue(t3.is_operator_type())
+        self.assertFalse(t1.is_operator_type())
+        self.assertFalse(t3.is_char_type())
+        self.assertEqual(t1.tok_type, 'CHAR')
 
 
 class Tokenizer:
+    special_chars = set(['|', '*', '(', ')', '.'])
 
     def __init__(self, pattern):
         self._pattern = pattern
         # _stream is a generator object
-        self._stream = self._getToken()
-        # keep track of num_chars consumed and the len of each tok
+        self._stream = self._generate_tokens()
+        self._position = 0
 
     def next(self):
         return next(self._stream)
 
-    def _getToken(self):
+    def _generate_tokens(self):
         isNormalChar = False
-        for c in self._pattern:
-            if c in ['|', '*', '(', ')', '.'] and not isNormalChar:
-                yield self._produceSpecial(c)
-            elif c == '\\':
+        for i, c in enumerate(self._pattern):
+            if c in self.special_chars and not isNormalChar:
+                tok_type = self._produce_special(c)
+                yield Token(c, tok_type, (i, 1))
+            elif c == '\\' and not isNormalChar:
                 isNormalChar = True
             else:
-                yield Token(c, 'CHAR')
-                isNormalChar = False
-            yield Token('$', 'END')
+                # problem here: if escaped char, the size should be two not one
+                yield Token(c, 'CHAR', (i, 1))
+                if isNormalChar:
+                    isNormalChar = False
+        yield Token('$', 'END', (len(self._pattern), 1))
 
-    def _produceSpecial(c):
+    def _produce_special(self, c):
         if c is '|':
-            return Token(c, 'OR')
+            return 'OR'
         if c is '*':
-            return Token(c, 'STAR')
+            return 'STAR'
         if c is '(':
-            return Token(c, 'LPAREN')
+            return 'LPAREN'
         if c is ')':
-            return Token(c, 'RPAREN')
+            return 'RPAREN'
         if c is '.':
-            return Token(c, 'ALLCHAR')
-
-
-'''
-We want to take a string as input, store it as a stream?? We want
-Every automata has a match() func that determines the next transition
-'''
+            return 'METACHAR'
 
 
 class TestTokenizer(ut.TestCase):
-    def testLexCharactersTest(self):
-        t = Tokenizer('ab')
-        if t.next() == Token('a', 'CHAR'):
-            self.assertEquals(5, 5)
-        else:
-            self.assertEquals(t.next(), 0)
+    def test_backslash_modifier(self):
+        t = Tokenizer('a\.')
+        self.assertEqual(t.next(), Token('a', 'CHAR', (20, 1)))
+        self.assertEqual(t.next(), Token('.', 'CHAR', (1, 2)))
+        t2 = Tokenizer('\\\\')
+        self.assertEqual(t2.next(), Token('\\', 'CHAR', (1, 2)))
+        self.assertTrue(t2.next().is_end_type())
+
+    def test_special_tokens(self):
+        t = Tokenizer('ab|c((d|.)*)*')
+        test_types = [
+                'CHAR', 'CHAR', 'OR', 'CHAR', 'LPAREN', 'LPAREN', 'CHAR',
+                'OR', 'METACHAR', 'RPAREN', 'STAR', 'RPAREN', 'STAR', 'END']
+        for expected_type in test_types:
+            actual_type = t.next()._tok_type
+            self.assertEqual(expected_type, actual_type)
 
 
 if __name__ == '__main__':
