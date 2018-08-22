@@ -1,0 +1,2 @@
+Make sure the lexer for the regex gets rid of all whitespace so that the 
+ regex_patterns can look like this: ( ab | cd * )
