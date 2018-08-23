@@ -6,7 +6,7 @@ def find_single_match(pattern, search_space):
     try:
         nfa = construct_nfa(pattern)
     except ParsingError as e:
-        print('Parsing Error in pattern position: ', e.pos)
+        HELLO('Parsing Error in pattern position: ', e.pos)
     simulator = NfaSimulator(nfa)
     for char in search_space:
         if simulator.has_match():
