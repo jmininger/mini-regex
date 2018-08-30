@@ -25,11 +25,6 @@ class NFA:
             # partial_state.spawn_child()
 
 
-class NFAState:
-    def __init__(self):
-        self._partial_states = []
-
-
 class NFAPartialState:
     def __init__(self, start_node=-1):
         self._node = start_node
@@ -49,13 +44,19 @@ class NFAPartialState:
         return len(self._history)
 
 
+def longer_history(state_iter1, state_iter2):
+    if state_iter1.history_length() >= state_iter2.history_length():
+        return state_iter1
+    else:
+        return state_iter2
+
+
 class PartialStateTest(ut.TestCase):
     def test_spawn_child(self):
         # should not add to history if move to same state
         # should not add to history if epsilon transition
         # should add to history if normal transition
         state = NFAPartialState(0)
-        # state._node = 0
         self.assertEqual(state.current_node(), 0)
         state = state.spawn_child(1, 'a')
         self.assertEqual(state.current_node(), 1)
@@ -65,6 +66,57 @@ class PartialStateTest(ut.TestCase):
         self.assertEqual(state.history_length(), 1)
         state = state.spawn_child(3, 'a')
         self.assertEqual(state.history_length(), 2)
+
+
+class NFAState:
+    def __init__(self):
+        # Key: NodeID, Val: PartialState for node
+        # Note, only one state per node id
+        # The above strategy becomes an issue when the client wants to match
+        #   all possible matches in a string and not just a single one
+        self._partial_states = dict()
+
+    def add(self, partials):
+        for partial_state in partials:
+            node_id = partial_state.current_node()
+            if self._partial_states.get(node_id, None):
+                # make the above much more pythonic
+                conflicting_partial = self._partial_states[node_id]
+                self._partial_states[node_id] = \
+                    longer_history(conflicting_partial, partial_state)
+            else:
+                self._partial_states[node_id] = partial_state
+
+    def get(self):
+        return self._partial_states
+
+
+class NFAStateTest(ut.TestCase):
+    def test_single_node_per_nfa_state(self):
+        state = NFAState()
+        partial_mock = NFAPartialState(4)
+        partial_mock._history.extend(['a', 'b', 'c'])
+        partial_mock2 = NFAPartialState(4)
+        partial_mock3 = NFAPartialState(4)
+        partial_mock3._history.extend(['a', 'b'])
+        partial_states = [partial_mock, partial_mock2]
+        state.add(partial_states)
+        self.assertEqual(len(state._partial_states), 1)
+        self.assertEqual(state._partial_states[4], partial_mock)
+        state.add([partial_mock3])
+        self.assertEqual(state._partial_states[4], partial_mock)
+
+    def test_get_entire_state(self):
+        state = NFAState()
+        nfaps0 = NFAPartialState(0)
+        nfaps1 = NFAPartialState(1)
+        nfaps2 = NFAPartialState(2)
+        nfaps3 = NFAPartialState(3)
+        nfaps4 = NFAPartialState(4)
+        state.add([nfaps0, nfaps1, nfaps2, nfaps3, nfaps4])
+        state.add([NFAPartialState(4).spawn_child(3, 'a')])
+        state_repr = state.get()
+        self.assertEqual([0, 1, 2, 3, 4], list(state_repr.keys()))
 
 
 class AutomataRunnerTest(ut.TestCase):
