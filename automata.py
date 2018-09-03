@@ -1,8 +1,8 @@
 import unittest as ut
 from collections import namedtuple
-import copy
+# import copy
 from inspect import isclass
-
+from stack import Stack
 
 TransitionEntry = namedtuple('TransitionEntry', ['marked_transitions',
                              'epsilon_transitions'])
@@ -125,45 +125,59 @@ class NFAState:
 
 
 class NFAStateTest(ut.TestCase):
+    def setUp(self):
+        self.mock_iter1 = type("MockIter", (), {'history_length': lambda: 4,
+                               'current_node': 1})
+        self.mock_iter2 = type("MockIter", (), {'history_length': lambda: 5,
+                               'current_node': 1})
+        self.mock_iter3 = type("MockIter", (), {'history_length': lambda: 6,
+                               'current_node': 2})
+        self.mock_iter4 = type("MockIter", (), {'history_length': lambda: 7,
+                               'current_node': 3})
+
     def test_only_allows_one_iterator_per_state(self):
-        mock_iter1 = type("MockIter", (), {'history_length': lambda: 4,
-                          'current_node': 1})
-        mock_iter2 = type("MockIter", (), {'history_length': lambda: 5,
-                          'current_node': 1})
-        mock_iter3 = type("MockIter", (), {'history_length': lambda: 6,
-                          'current_node': 2})
-        mock_iter4 = type("MockIter", (), {'history_length': lambda: 7,
-                          'current_node': 3})
 
         state = NFAState()
-        state.add(mock_iter1)
-        state.add(mock_iter2)
-        state.add(mock_iter3)
-        state.add(mock_iter4)
-        expected_state = [mock_iter2, mock_iter3, mock_iter4]
+        state.add(self.mock_iter1)
+        state.add(self.mock_iter2)
+        state.add(self.mock_iter3)
+        state.add(self.mock_iter4)
+
+        # mock_iter1 is not expected to be in the final state because it
+        # matches the same part of the string as mock_iter2, but the match
+        # spans less of the string than mock_iter2
+        expected_state = [self.mock_iter2, self.mock_iter3, self.mock_iter4]
         for iterator in state:
             self.assertTrue(iterator in expected_state)
             expected_state.remove(iterator)
         self.assertListEqual(expected_state, [])
 
-        # define two mock iterators with staees and histories the latter of
-        # which should be a method
-
 
 class NFASimulator:
-    def __init__(self, nfa, state_container):
+    def __init__(self, nfa, state_container, state_iterator):
+        # state_container, and state_iterator are classes used to construct
+        # elements in the simulator. This use of dependency injection (enabled
+        # by the use of interfaces and not direct objects) allows for easier
+        # testing and different strategies later on
         self._nfa = nfa
         self._start_id = self._nfa._start_node
         self._final_id = self._nfa._end_node
         assert(isclass(state_container))
         self._state_container = state_container
         self._state = self._state_container()
+        assert(isclass(state_iterator))
+        self._state_iterator = state_iterator
 
     # Takes a str as input and puts the input into the automata char by char
     # Returns a list of all the input iterators that ends up in the final node
+
     def cycle_state(self, input_str):
-        next_state = self._state_container.new()
-        print(next_state)
+        # Make iter for start state, use this to spawn iterators for the
+        # computed epsilon closure
+        # Then for each element in the current state, attempt to advance,
+        # for each state successful in advancing, compute epsilon closure and
+        # spawn new nodes for each of these
+        pass
 
     def reset_state(self):
         self._state = self._state_container()
@@ -177,7 +191,17 @@ class NFASimulator:
         #         state...
         #         IDEA: Create an node_iter cache...that holds the epsilon
         #         closure of a bunch of different nodes in the cache
-        pass
+        # Basic DFS search
+        explored_nodes = set()
+        frontier = Stack()
+        frontier.push(start_iter.node_id)
+        while not frontier.is_empty():
+            node = frontier.pop()
+            explored_nodes.add(node)
+            for next_node in self._nfa.epsilon_transitions(node):
+                if next_node not in explored_nodes:
+                    frontier.push(next_node)
+        return list(explored_nodes)
 
     def single_cycle():
         pass
@@ -197,15 +221,24 @@ class NFASimulatorTest(ut.TestCase):
                 8: TransitionEntry({}, [])
                 }
         self.nfa_mock = NFA(self.transition_table, 0, 8)
+        self.state_container = NFAState
+        self.state_iterator = NFAIterator
 
-    def test_treats_strings_and_char_input_identically(self):
-        nfa = self.nfa_mock
-        sim1 = NFASimulator(nfa)
-        sim2 = copy.deep_copy(sim1)
-        self.assertListEqual(sim1.cycle('abc'), [sim2.cycle(c) for c in 'abc'])
+    def test_computes_epsilon_closure_on_empty_string(self):
+        sim = NFASimulator(self.nfa_mock, self.state_container,
+                           self.state_iterator)
+        matches = sim.cycle_state('')
+        self.assertEqual(len(matches), 1)
 
-    def test_returns_iterators_when_in_final_state(self):
-        pass
+#     def test_treats_strings_and_char_input_identically(self):
+#         nfa = self.nfa_mock
+#         sim1 = NFASimulator(nfa)
+#         sim2 = copy.deep_copy(sim1)
+#         self.assertListEqual(sim1.cycle('abc'), [sim2.cycle(c) for c in \
+        # 'abc'])
+
+#     def test_returns_iterators_when_in_final_state(self):
+#         pass
 
 
 if __name__ == '__main__':
