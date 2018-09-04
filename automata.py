@@ -20,6 +20,15 @@ class NFA:
         self._start_node = start
         self._end_node = final
 
+    def __str__(self):
+        table_repr = []
+        for key, val in self._transition_table.items():
+            table_repr.append(str(key))
+            table_repr.append(str(val))
+        table_repr = "\n".join(table_repr)
+        return "".join(["StartNode: ", str(self._start_node), ", FinalNode: ",
+                        str(self._end_node), "\nTableRepr: ", table_repr])
+
     # Given a state and transition_char, returns the next possible transition
     # or returns "None" if there is not one
     def marked_transition(self, node_id, input_char):
@@ -81,6 +90,10 @@ class NFAIterator:
         self._current_node = start_node
         self._history = []
 
+    def __str__(self):
+        return "".join(["NODE: ", str(self._current_node), " History: ",
+                        ",".join([str(elem) for elem in self._history])])
+
     def spawn_child(self, next_state, transition=None):
         child = NFAIterator(next_state)
         child._history = self._history.copy()
@@ -115,25 +128,30 @@ class NFAState:
     def __iter__(self):
         return iter(self._states_held.values())
 
-    def add(self, iterator):
-        node = iterator.current_node
-        if node in self._states_held:
-            other = self._states_held[node]
-            self._states_held[node] = longer_history(iterator, other)
-        else:
-            self._states_held[node] = iterator
+    def add(self, *iterators):
+        for iterator in iterators:
+            node = iterator._current_node
+            if node in self._states_held:
+                other = self._states_held[node]
+                self._states_held[node] = longer_history(iterator, other)
+            else:
+                self._states_held[node] = iterator
+
+    def __str__(self):
+        return "".join(["NFAState: ", ",".join([str(nfa_iter) for nfa_iter in
+                        self._states_held.values()])])
 
 
 class NFAStateTest(ut.TestCase):
     def setUp(self):
         self.mock_iter1 = type("MockIter", (), {'history_length': lambda: 4,
-                               'current_node': 1})
+                               '_current_node': 1})
         self.mock_iter2 = type("MockIter", (), {'history_length': lambda: 5,
-                               'current_node': 1})
+                               '_current_node': 1})
         self.mock_iter3 = type("MockIter", (), {'history_length': lambda: 6,
-                               'current_node': 2})
+                               '_current_node': 2})
         self.mock_iter4 = type("MockIter", (), {'history_length': lambda: 7,
-                               'current_node': 3})
+                               '_current_node': 3})
 
     def test_only_allows_one_iterator_per_state(self):
 
@@ -167,7 +185,10 @@ class NFASimulator:
         self._state = self._state_container()
         assert(isclass(state_iterator))
         self._state_iterator = state_iterator
-
+        # Initialize the state
+        start_iter = self._state_iterator(self._start_id)
+        self._state.add(start_iter)
+        self._state.add(*self._compute_epsilon_closure(start_iter))
     # Takes a str as input and puts the input into the automata char by char
     # Returns a list of all the input iterators that ends up in the final node
 
@@ -177,34 +198,42 @@ class NFASimulator:
         # Then for each element in the current state, attempt to advance,
         # for each state successful in advancing, compute epsilon closure and
         # spawn new nodes for each of these
-        pass
+        matches = []
+        for input_char in input_str:
+            next_state = self._state_container()
+            start_iter = self._state_iterator(self._start_id)
+            next_state.add(start_iter)
+            next_state.add(*self._compute_epsilon_closure(start_iter))
+            for node_iter in self._state:
+                # clean this up...it is super sloppy
+                advance_iter = self._nfa.marked_transition(node_iter.node_id,
+                                                           input_char)
+                if advance_iter:
+                    next_state.add(advance_iter)
+            # Make more legible by update_state(next_state)
+            self._state = next_state
+
+            # These two lines retrieve any iters in the final state
+            matches.append(self._state._states_held.get(self._final_id, []))
+        matches.append(self._state._states_held.get(self._final_id, []))
+        return matches
 
     def reset_state(self):
         self._state = self._state_container()
 
     def _compute_epsilon_closure(self, start_iter):
-        # Uses dfs to search the nfa and spawn a new nfa_iter for each new
-        # epsilon closure
-        # ##NOTE: Here, to optimize, we need to make sure not only that a path
-        #         has not been explored in the local search, but that an iter
-        #         has not also already been made on it in the global
-        #         state...
-        #         IDEA: Create an node_iter cache...that holds the epsilon
-        #         closure of a bunch of different nodes in the cache
-        # Basic DFS search
-        explored_nodes = set()
+        # Returns a list of NFAIterators
+        # Uses DFS to search the nfa for all possible "free"(epsilon)
+        # transitions that can be made from start_iter
+        explored = set()
         frontier = Stack()
-        frontier.push(start_iter.node_id)
-        while not frontier.is_empty():
+        frontier.push(start_iter._current_node)
+        while frontier:
             node = frontier.pop()
-            explored_nodes.add(node)
-            for next_node in self._nfa.epsilon_transitions(node):
-                if next_node not in explored_nodes:
-                    frontier.push(next_node)
-        return list(explored_nodes)
-
-    def single_cycle():
-        pass
+            explored.add(node)
+            frontier.push(*[n for n in self._nfa.epsilon_transitions(node)
+                            if n not in explored])
+        return [start_iter.spawn_child(node) for node in explored]
 
 
 class NFASimulatorTest(ut.TestCase):
