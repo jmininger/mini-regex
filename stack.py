@@ -13,6 +13,9 @@ class Stack:
         while self._deque:
             yield self.pop()
 
+    def __len__(self):
+        return len(self._deque)
+
     def pop(self):
         return self._deque.pop()
 
@@ -32,6 +35,18 @@ class StackTest(ut.TestCase):
         for elem in s:
             actual.append(elem)
         self.assertListEqual(actual, [6, 4, 2])
+
+    def test_gets_size(self):
+        s = Stack()
+        s.push(1, 3, 5, 7, 9)
+        self.assertEqual(len(s), 5)
+
+    def test_evaluates_to_false_when_empty(self):
+        s = Stack()
+        s.push(5)
+        self.assertTrue(s)
+        s.pop()
+        self.assertFalse(s)
 
 
 if __name__ == '__main__':
