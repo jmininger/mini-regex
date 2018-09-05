@@ -1,53 +1,67 @@
 import unittest as ut
 from collections import namedtuple
-# import copy
 from inspect import isclass
+import logging
+
 from stack import Stack
 
+logging.basicConfig(filename='log.txt', filemode='w', level=logging.DEBUG)
+# TransitionEntry organizes data stored in an NFA's transition table
+# marked_transitions = dict('input_char': 'node_id'})
+# epsilon_transitions = list(node_id)
 TransitionEntry = namedtuple('TransitionEntry', ['marked_transitions',
                              'epsilon_transitions'])
 
 
 class NFA:
-    """ Holds all transitions required for traversing the NFA """
+    """ Holds all transitions required for traversing the NFA. This structure
+        is immutable once created by the Builder """
 
     # The default "empty" automata
     empty_nfa_table = {0: TransitionEntry({}, [1]), 1: TransitionEntry({}, [])}
 
     def __init__(self, transition_table=None, start=0, final=1):
-        self._transition_table = transition_table if transition_table \
-                                 else self.empty_nfa_table
+        # Holds the graph representing the NFA
         self._start_node = start
         self._end_node = final
+        if transition_table:
+            self._transition_table = transition_table
+        else:
+            self._transition_table = NFA.empty_nfa_table
 
     def __str__(self):
-        table_repr = []
-        for key, val in self._transition_table.items():
-            table_repr.append(str(key))
-            table_repr.append(str(val))
-        table_repr = "\n".join(table_repr)
-        return "".join(["StartNode: ", str(self._start_node), ", FinalNode: ",
-                        str(self._end_node), "\nTableRepr: ", table_repr])
+        table = []
+        for node_id, trans in self._transition_table.items():
+            table.append(
+                "NodeID: " + str(node_id) +
+                " Transitions: " + str(trans)
+            )
+        table = "\n".join(table)
 
-    # Given a state and transition_char, returns the next possible transition
-    # or returns "None" if there is not one
+        return "".join([
+                    "StartNode: ", str(self._start_node),
+                    ", FinalNode: ", str(self._end_node),
+                    "\nTableRepr: ", table
+                ])
+
     def marked_transition(self, node_id, input_char):
-        transitions = self._transition_table.get(node_id, None)
+        """ Given a state and transition_char, returns the next possible transition
+            or returns "None" if there is not one """
+        transition_entry = self._transition_table.get(node_id, None)
+        if transition_entry is None:
+            logging.error("MarkedTransition Invalid NodeID: " + str(node_id))
+            raise Exception("CorruptNFA")
+        return transition_entry.marked_transitions.get(input_char, None)
 
-        # Try returning something else here: Maybe try/catch an exception and
-        # log the entire nfa before quitting the method
-        if transitions is None:
-            print("Invalid NodeID: ", node_id, " Corrupt nfa")
-            return None
-        return transitions.marked_transitions.get(input_char, None)
-
-    # Returns a list of node_ids representing all possible "free" transitions
-    # (epsilons) from node_id. Returns an empty list if there are none
     def epsilon_transitions(self, node_id):
-        transitions = self._transition_table.get(node_id, None)
-        if transitions is None:
-            print("Invalid NodeID: ", node_id)
-        return transitions.epsilon_transitions
+        """ Returns a list of node_ids representing all possible
+            "free" transitions (epsilons) from node_id. Returns an
+            empty list if there are none """
+        transition_entry = self._transition_table.get(node_id, None)
+        if transition_entry is None:
+            logging.error("MarkedTransition Invalid NodeID: " + str(node_id))
+            raise Exception("CorruptNFA")
+        return transition_entry.epsilon_transitions
 
 
 class NFATest(ut.TestCase):
@@ -69,18 +83,33 @@ class NFATest(ut.TestCase):
         next_node = nfa.marked_transition(node_id=3, input_char='a')
         self.assertEqual(next_node, 5)
 
-    def test_non_existent_node_access(self):
+    def test_impossible_transition(self):
         nfa = NFA(self.transition_table, start=0, final=8)
         next_node = nfa.marked_transition(0, 'a')
         self.assertIsNone(next_node)
 
-    def test_get_epsilons(self):
+    def test_retrieves_epsilons(self):
         nfa = NFA(self.transition_table, start=0, final=8)
         epsilons = nfa.epsilon_transitions(node_id=6)
         self.assertEqual(epsilons, [3, 7])
 
-    def test_object_is_immutable(self):
-        pass
+    def test_empty_list_when_no_epsilons(self):
+        nfa = NFA(self.transition_table, final=8)
+        epsilons = nfa.epsilon_transitions(5)
+        self.assertListEqual(epsilons, [])
+
+    def test_raises_exception_on_invalid_node_access(self):
+        nfa = NFA(self.transition_table, final=8)
+        self.assertRaises(Exception, nfa.marked_transition, -1, 'a')
+
+    def test_raises_exception_on_invalid_node(self):
+        nfa = NFA(self.transition_table, final=8)
+        self.assertRaises(Exception, nfa.epsilon_transitions, -1)
+
+    def test_constructs_empty_nfa_when_none_specified(self):
+        nfa = NFA()
+        self.assertListEqual(nfa.epsilon_transitions(0), [1])
+        self.assertListEqual(nfa.epsilon_transitions(1), [])
 
 
 class NFAIterator:
@@ -206,8 +235,10 @@ class NFASimulator:
             next_state.add(*self._compute_epsilon_closure(start_iter))
             for node_iter in self._state:
                 # clean this up...it is super sloppy
-                advance_iter = self._nfa.marked_transition(node_iter.node_id,
-                                                           input_char)
+                next_node = self._nfa.marked_transition(
+                                 node_iter._current_node, input_char)
+
+                advance_iter = node_iter.spawn_child(next_node, input_char)
                 if advance_iter:
                     next_state.add(advance_iter)
             # Make more legible by update_state(next_state)
@@ -239,7 +270,8 @@ class NFASimulator:
 class NFASimulatorTest(ut.TestCase):
     def setUp(self):
         self.transition_table = {
-                0: TransitionEntry({}, [1, 2]),
+                0: TransitionEntry({'d': 9}, []),
+                9: TransitionEntry({}, [1, 2]),
                 1: TransitionEntry({}, [3, 7]),
                 2: TransitionEntry({'c': 7}, []),
                 3: TransitionEntry({'a': 5}, []),
@@ -259,6 +291,14 @@ class NFASimulatorTest(ut.TestCase):
         matches = sim.cycle_state('')
         self.assertEqual(len(matches), 1)
 
+    # def test_returns_all_matches_in_str(self):
+    #     pass
+    #     sim = NFASimulator(self.nfa_mock, self.state_container,
+    #                        self.state_iterator)
+    #     matches = sim.cycle_state('dedacabc')
+    #     self.assertEqual(", ".join([str(m) for m in matches]), "")
+    #     self.assertEqual(str(sim._state), '')
+    #     self.assertEqual(len(matches), 3)
 #     def test_treats_strings_and_char_input_identically(self):
 #         nfa = self.nfa_mock
 #         sim1 = NFASimulator(nfa)
