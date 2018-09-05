@@ -113,33 +113,56 @@ class NFATest(ut.TestCase):
 
 
 class NFAIterator:
-    # Iterators keep track of the NFA's "partial state", creating child
-    # on each possible transition.
-    def __init__(self, start_node):
-        self._current_node = start_node
-        self._history = []
+    """ NFAIterators are used to represent a single state during an NFA
+        simulation. It is also in charge of tracking the characters it has
+        consumed to reach the state that it is in """
+
+    def __init__(self, node_id):
+        self._current_node = node_id
+        self._history = []  # ordered list of all chars the iter has consumed
 
     def __str__(self):
-        return "".join(["NODE: ", str(self._current_node), " History: ",
-                        ",".join([str(elem) for elem in self._history])])
+        return "".join([
+                    "NODE: ", str(self._current_node),
+                    " History: ", ",".join(self._history)
+                ])
 
-    def spawn_child(self, next_state, transition=None):
+    @property
+    def history(self):
+        return self._history
+
+    @property
+    def node(self):
+        return self._current_node
+
+    def spawn_child(self, next_state, input_symbol=None):
+        """ Creates a new iterator that copies the old one over and advances
+            the state of the iterator """
         child = NFAIterator(next_state)
         child._history = self._history.copy()
-        if transition:
-            child._history.append(transition)
+
+        # Epsilon transitions do not effect an iterator's symbol history
+        if input_symbol:
+            child._history.append(input_symbol)
         return child
 
     def history_length(self):
         return len(self._history)
 
 
-"""
-State() .add(NFAIterator), iterable, makes sure only the one with the longest
-history is the one that survives
-Question: Should it be the iterators job to manage whether a state is valid or
-not???
-"""
+class NFAIteratorTest(ut.TestCase):
+    def test_iters_keep_track_of_history_on_spawn(self):
+        parent = NFAIterator(1)
+        child1 = parent.spawn_child(2, 'a')
+        child2 = child1.spawn_child(3, 'b')
+        child3 = child2.spawn_child(4, 'c')
+        child4 = child2.spawn_child(5)
+        self.assertListEqual(child3.history, ['a', 'b', 'c'])
+        self.assertListEqual(child4.history, ['a', 'b'])
+
+    def test_retrieves_current_node(self):
+        iter1 = NFAIterator(0)
+        self.assertEqual(iter1.spawn_child(4).node, 4)
 
 
 def longer_history(iter1, iter2):
@@ -147,28 +170,37 @@ def longer_history(iter1, iter2):
            else iter2
 
 
-class NFAState:
+class NFAStateContainer:
+    """ Serves as a set data structure containing all of the partial states
+        (iterators) that an NFA is in during a single cycle. If a state is
+        added, this container will make sure that if there is currently another
+        iter on the same node, only the iter with the longer history will
+        remain"""
+
     def __init__(self):
-
-        # states_held holds all of the active NFAIterators which can be looked
-        # up by the node_id of the state they hold
+        # Holds all active NFAIterators for a cycle
+        # Key: Node_id, Value: NFAIterator
         self._states_held = {}
-
-    def __iter__(self):
-        return iter(self._states_held.values())
-
-    def add(self, *iterators):
-        for iterator in iterators:
-            node = iterator._current_node
-            if node in self._states_held:
-                other = self._states_held[node]
-                self._states_held[node] = longer_history(iterator, other)
-            else:
-                self._states_held[node] = iterator
 
     def __str__(self):
         return "".join(["NFAState: ", ",".join([str(nfa_iter) for nfa_iter in
                         self._states_held.values()])])
+
+    def __iter__(self):
+        """ Allows iteration over all states """
+        return iter(self._states_held.values())
+
+    def add(self, *states):
+        for state in states:
+            # When two iterators end up on the same node, their futures
+            # will be identical, so there is no point in tracking both of
+            # them. In this case, we choose to drop the iter with the
+            # shorter history
+            conflicting_state = self._states_held.get(state.node, None)
+            if conflicting_state:
+                self._states_held = longer_history(state, conflicting_state)
+            else:
+                self._states_held[state.node] = state
 
 
 class NFAStateTest(ut.TestCase):
@@ -184,7 +216,7 @@ class NFAStateTest(ut.TestCase):
 
     def test_only_allows_one_iterator_per_state(self):
 
-        state = NFAState()
+        state = NFAStateContainer()
         state.add(self.mock_iter1)
         state.add(self.mock_iter2)
         state.add(self.mock_iter3)
@@ -282,7 +314,7 @@ class NFASimulatorTest(ut.TestCase):
                 8: TransitionEntry({}, [])
                 }
         self.nfa_mock = NFA(self.transition_table, 0, 8)
-        self.state_container = NFAState
+        self.state_container = NFAStateContainer
         self.state_iterator = NFAIterator
 
     def test_computes_epsilon_closure_on_empty_string(self):
