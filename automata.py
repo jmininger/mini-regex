@@ -47,17 +47,17 @@ class NFA:
     def marked_transition(self, node_id, input_char):
         """ Given a state and transition_char, returns the next possible transition
             or returns "None" if there is not one """
-        transition_entry = self._transition_table.get(node_id, None)
+        transition_entry = self._transition_table.get(node_id)
         if transition_entry is None:
             logging.error("MarkedTransition Invalid NodeID: " + str(node_id))
             raise Exception("CorruptNFA")
-        return transition_entry.marked_transitions.get(input_char, None)
+        return transition_entry.marked_transitions.get(input_char)
 
     def epsilon_transitions(self, node_id):
         """ Returns a list of node_ids representing all possible
             "free" transitions (epsilons) from node_id. Returns an
             empty list if there are none """
-        transition_entry = self._transition_table.get(node_id, None)
+        transition_entry = self._transition_table.get(node_id)
         if transition_entry is None:
             logging.error("MarkedTransition Invalid NodeID: " + str(node_id))
             raise Exception("CorruptNFA")
@@ -196,40 +196,54 @@ class NFAStateContainer:
             # will be identical, so there is no point in tracking both of
             # them. In this case, we choose to drop the iter with the
             # shorter history
-            conflicting_state = self._states_held.get(state.node, None)
+            conflicting_state = self._states_held.get(state.node)
             if conflicting_state:
-                self._states_held = longer_history(state, conflicting_state)
+                self._states_held[state.node] = \
+                     longer_history(state, conflicting_state)
             else:
                 self._states_held[state.node] = state
+
+    def get_state_at(self, node_id):
+        return self._states_held.get(node_id)
 
 
 class NFAStateTest(ut.TestCase):
     def setUp(self):
         self.mock_iter1 = type("MockIter", (), {'history_length': lambda: 4,
-                               '_current_node': 1})
+                               'node': 1})
         self.mock_iter2 = type("MockIter", (), {'history_length': lambda: 5,
-                               '_current_node': 1})
+                               'node': 1})
         self.mock_iter3 = type("MockIter", (), {'history_length': lambda: 6,
-                               '_current_node': 2})
+                               'node': 2})
         self.mock_iter4 = type("MockIter", (), {'history_length': lambda: 7,
-                               '_current_node': 3})
+                               'node': 3})
 
     def test_only_allows_one_iterator_per_state(self):
-
         state = NFAStateContainer()
         state.add(self.mock_iter1)
         state.add(self.mock_iter2)
         state.add(self.mock_iter3)
         state.add(self.mock_iter4)
-
-        # mock_iter1 is not expected to be in the final state because it
-        # matches the same part of the string as mock_iter2, but the match
-        # spans less of the string than mock_iter2
         expected_state = [self.mock_iter2, self.mock_iter3, self.mock_iter4]
         for iterator in state:
             self.assertTrue(iterator in expected_state)
             expected_state.remove(iterator)
         self.assertListEqual(expected_state, [])
+
+    def test_access_current_states(self):
+        # Observer pattern here?
+        state = NFAStateContainer()
+        state.add(self.mock_iter1)
+        state.add(self.mock_iter2, self.mock_iter3, self.mock_iter4)
+        nfa_iter = state.get_state_at(3)
+        self.assertEqual(nfa_iter, self.mock_iter4)
+
+    def test_returns_none_on_empty_nodes(self):
+        state = NFAStateContainer()
+        state.add(self.mock_iter1, self.mock_iter2,
+                  self.mock_iter3, self.mock_iter4)
+        non_existent_iter = state.get_state_at(0)
+        self.assertIsNone(non_existent_iter)
 
 
 class NFASimulator:
