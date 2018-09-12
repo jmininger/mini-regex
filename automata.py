@@ -247,6 +247,9 @@ class NFAStateTest(ut.TestCase):
 
 
 class NFASimulator:
+    """ Takes an NFA graph, and uses it to transition and hold state based
+        input """
+
     def __init__(self, nfa, state_container, state_iterator):
         # state_container, and state_iterator are classes used to construct
         # elements in the simulator. This use of dependency injection (enabled
@@ -255,66 +258,59 @@ class NFASimulator:
         self._nfa = nfa
         self._start_id = self._nfa._start_node
         self._final_id = self._nfa._end_node
+
         assert(isclass(state_container))
         self._state_container = state_container
         self._state = self._state_container()
         assert(isclass(state_iterator))
         self._state_iterator = state_iterator
+
+    def _compute_epsilon_closure(self, parent_iter):
+        """ Returns a list of NFAIterators
+            Uses DFS to search the nfa for all possible "free"(epsilon)
+            transitions that can be made from the parent_iter """
+        explored = set()
+        frontier = Stack()
+        frontier.push(parent_iter.node)
+        while frontier:
+            node = frontier.pop()
+            explored.add(node)
+            epsilons = self._nfa.epsilon_transitions(node)
+            frontier.push(*[n for n in epsilons if n not in explored])
+
+        # Create iters for each epsilon and have each inherit the parent's
+        # history
+        return [parent_iter.spawn_child(node) for node in explored]
+
+    def cycle_state(self, symbol):
+        """ Completes one cycle through the NFA, passing in a char and
+            recieving any state that ... """
         # Initialize the state
+        next_state = self._state_container()
+
         start_iter = self._state_iterator(self._start_id)
-        self._state.add(start_iter)
-        self._state.add(*self._compute_epsilon_closure(start_iter))
-    # Takes a str as input and puts the input into the automata char by char
-    # Returns a list of all the input iterators that ends up in the final node
+        next_state.add(start_iter)
+        epsilon_iters = self._compute_epsilon_closure(start_iter)
+        next_state.add(*epsilon_iters)
 
-    def cycle_state(self, input_str):
-        # Make iter for start state, use this to spawn iterators for the
-        # computed epsilon closure
-        # Then for each element in the current state, attempt to advance,
-        # for each state successful in advancing, compute epsilon closure and
-        # spawn new nodes for each of these
-        matches = []
-        for input_char in input_str:
-            next_state = self._state_container()
-            start_iter = self._state_iterator(self._start_id)
-            next_state.add(start_iter)
-            next_state.add(*self._compute_epsilon_closure(start_iter))
-            for node_iter in self._state:
-                # clean this up...it is super sloppy
-                next_node = self._nfa.marked_transition(
-                                 node_iter._current_node, input_char)
+        for iterator in self._state:
+            next_node = self._nfa.marked_transition(iterator.node, symbol)
+            if next_node:
+                child_iter = iterator.spawn_child(next_node, symbol)
+                next_state.add(child_iter)
+                epsilon_iters = self._compute_epsilon_closure(child_iter)
+                next_state.add(*epsilon_iters)
 
-                advance_iter = node_iter.spawn_child(next_node, input_char)
-                if advance_iter:
-                    next_state.add(advance_iter)
-            # Make more legible by update_state(next_state)
-            self._state = next_state
-
-            # These two lines retrieve any iters in the final state
-            matches.append(self._state._states_held.get(self._final_id, []))
-        matches.append(self._state._states_held.get(self._final_id, []))
-        return matches
+        self._state = next_state
+        return self._state.get_state_at(self._final_id)
 
     def reset_state(self):
         self._state = self._state_container()
 
-    def _compute_epsilon_closure(self, start_iter):
-        # Returns a list of NFAIterators
-        # Uses DFS to search the nfa for all possible "free"(epsilon)
-        # transitions that can be made from start_iter
-        explored = set()
-        frontier = Stack()
-        frontier.push(start_iter._current_node)
-        while frontier:
-            node = frontier.pop()
-            explored.add(node)
-            frontier.push(*[n for n in self._nfa.epsilon_transitions(node)
-                            if n not in explored])
-        return [start_iter.spawn_child(node) for node in explored]
-
 
 class NFASimulatorTest(ut.TestCase):
     def setUp(self):
+        # represents the pattern: d(ab|c*)
         self.transition_table = {
                 0: TransitionEntry({'d': 9}, []),
                 9: TransitionEntry({}, [1, 2]),
@@ -330,12 +326,43 @@ class NFASimulatorTest(ut.TestCase):
         self.nfa_mock = NFA(self.transition_table, 0, 8)
         self.state_container = NFAStateContainer
         self.state_iterator = NFAIterator
+        self.epsilon_only_transitions = {
+                0: TransitionEntry({}, [1, 2]),
+                1: TransitionEntry({}, [3, 5]),
+                2: TransitionEntry({}, []),
+                3: TransitionEntry({'a': 4}, []),
+                4: TransitionEntry({}, []),
+                5: TransitionEntry({}, [5])
+            }
 
     def test_computes_epsilon_closure_on_empty_string(self):
+        nfa = NFA(self.epsilon_only_transitions, 0, 5)
+        sim = NFASimulator(nfa, self.state_container, self.state_iterator)
+        match = sim.cycle_state('')
+        self.assertEqual(str(match), str(NFAIterator(5)))
+
+    def test_properly_identifies_matches(self):
         sim = NFASimulator(self.nfa_mock, self.state_container,
                            self.state_iterator)
-        matches = sim.cycle_state('')
-        self.assertEqual(len(matches), 1)
+        self.assertIsNone(sim.cycle_state('a'), None)
+        self.assertListEqual(sim.cycle_state('d').history, ['d'])
+
+    # def test_handles_infinite_node_transition(self):
+    #     """ Infinity is the name I give the scenario where a node has an
+    #         epsilon transition to itself and so the node is always part of
+    #         the NFA's state """
+    #     infinity_nfa_table = {
+    #                 0: TransitionEntry({'a': 1}, []),
+    #                 1: TransitionEntry({'b': 2}, [1]),
+    #                 2: TransitionEntry({}, [])
+    #             }
+    #     state_mock = type('NFAStateContainer', {
+
+    #         })
+    #   sim = NFASimulator(NFA(infinity_nfa_table, 0, 2), self.state_container,
+    #                        self.state_iterator)
+    #     sim.cycle_state('a')
+    #     match = sim.cycle_state('c')
 
     # def test_returns_all_matches_in_str(self):
     #     pass
