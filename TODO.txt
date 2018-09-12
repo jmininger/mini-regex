@@ -1,2 +1,11 @@
 Make sure the lexer for the regex gets rid of all whitespace so that the 
  regex_patterns can look like this: ( ab | cd * )
+grammar = {
+	'E' : ["T E\'"],
+	'E\'': [" | E", ""],
+	'T' : ["F T\'"],
+	'T\'': [" T ", ""],
+	'F' : ["C F\'"],
+	'F\'': ["*", ""],
+	'C' : [".", "( E )"]
+}
