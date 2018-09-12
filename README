@@ -3,7 +3,7 @@ NFA(non-deterministic finite automata) and runs it on input strings to find
 matches. 
 
 THIS IS AN INCOMPLETE PROJECT
-The parser and simulation parts are complete
+The stack and simulation parts are complete
 
 Patterns supported: 
 ab -- union
