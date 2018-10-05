@@ -1,36 +1,49 @@
 import unittest as ut
 
 
-def find_single_match(pattern, search_space):
-    # add end char? or do it with the parser?
-    try:
-        nfa = construct_nfa(pattern)
-    except ParsingError as e:
-        HELLO('Parsing Error in pattern position: ', e.pos)
-    simulator = NfaSimulator(nfa)
-    for char in search_space:
-        if simulator.has_match():
-            return simulator.get_matches()[0]
-        else:
-            simulator.next_state(char)
-    # Do a better job here of figuring out how to return None
-    return simulator.get_matches()
-    # If no matches, print a message: "No matches"
+class MiniRegex:
+    def __init__(self, pattern):
+        self._pattern = pattern
+        self._nfa = self._build_nfa(self._pattern)
+
+    def _build_nfa(self, pattern_str):
+        pass
+
+    def is_match(self, search_space):
+        return self._pattern in search_space
 
 
-class TestRegexSearch(ut.TestCase):
-    def test_single_search(self):
-        test_searches = [
-                'hello world my name is jacquin',
-                'regex engines are cool',
-                'Baz Baz Foo'
-            ]
-        for sentence in test_searches:
-            match = find_single_match('my | oo* | q', search_space=sentence)
-            self.assertTrue(match)
+# Everything should be feature first, and not worry about the implementation.
+# As long as it works, its ok.
+class TestRegexEngine(ut.TestCase):
 
-    def test_no_match(self):
-        test_searches = ['hello', 'no matche']
-        for sentence in test_searches:
-            match = find_single_match('helloWorld | matches | j', sentence)
-            self.assertFalse(match)
+    def test_single_match(self):
+        pattern = '.el*o'
+        regex = MiniRegex(pattern)
+        search_str = 'Hello World!'
+        self.assertTrue(regex.is_match(search_str))
+
+        search_str = 'Telllloooooooee'
+        self.assertTrue(regex.is_match(search_str))
+
+        search_str = 'Not a match'
+        self.assertFalse(regex.is_match(search_str))
+
+    def test_reuse_pattern(self):
+        pass
+
+    def test_first_match(self):
+        pass
+
+    def test_longer_match(self):  # scenario where regex gets chopped off but
+        # states remain
+        pass
+
+
+if __name__ == '__main__':
+    ut.main()
+
+# Should work on files
+# Should return the line number and column number of the start of the match
+# Record all matches
+# Find first match

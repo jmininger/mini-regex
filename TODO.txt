@@ -1,5 +1,16 @@
-Make sure the lexer for the regex gets rid of all whitespace so that the 
- regex_patterns can look like this: ( ab | cd * )
+Should work on files
+Should return the line number and column number of the start of the match
+Record all matches
+Find first match
+What happens when we have matches inside of other matches?
+What happens if one match starts inside of another match but then extends past
+the first match?
+
+Notes:
+Difference between char literal and meta char
+Wildcards
+
+
 grammar = {
 	'E' : ["T E\'"],
 	'E\'': [" | E", ""],
