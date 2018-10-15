@@ -1,58 +1,41 @@
 import unittest as ut
+import transitions
 
 
-class Transition:
-    def is_available(self, char):
-        return Exception('Abstract class')
+class State:
+    """ A state is nothing more than an ID and a list of
+        transition -> node pairs """
+
+    def __init__(self, id):
+        self.id = id
+        self.paths = []
+
+    def add_path(self, transition, next_state):
+        path = (transition, next_state)
+        self.paths.append(path)
+
+    def available_paths(self, char):
+        return [state for transition, state in self.paths if
+                transition.is_available(char)]
 
 
-class CharLiteralTransition(Transition):
-    def __init__(self, char):
-        self._char = char
-
-    def is_available(self, char):
-        """ Determines if a character is a member of this particular character
-            class """
-        return self._char == char
-
-
-class MetaTransition(Transition):
-    def is_available(self, char):
-        return char != '\n'
-
-
-class CaseInsensitiveLiteralTransition(CharLiteralTransition):
-    def __init__(self, char):
-        super().__init__(char)
+class TransitionStub(transitions.Transition):
+    def __init__(self, available_set):
+        self.available_set = available_set
 
     def is_available(self, char):
-        return self._char.upper() == char.upper()
+        return char in self.available_set
 
 
-class TransitionTest(ut.TestCase):
-    def test_char_literal(self):
-        transition = CharLiteralTransition('a')
-        self.assertTrue(transition.is_available('a'))
-        self.assertFalse(transition.is_available('c'))
-
-    def test_metachar_dot(self):
-        transition = MetaTransition()
-        self.assertTrue(transition.is_available('a'))
-        self.assertTrue(transition.is_available('b'))
-        self.assertFalse(transition.is_available('\n'))
-
-    def test_upper_lower_case_meta(self):
-        transition = CaseInsensitiveLiteralTransition('a')
-        self.assertTrue(transition.is_available('a'))
-        self.assertTrue(transition.is_available('A'))
-
-        self.assertFalse(transition.is_available('b'))
-        self.assertFalse(transition.is_available('B'))
-
-    def test_upper_lower_case_works_with_nonalpha_chars(self):
-        transition = CaseInsensitiveLiteralTransition('-')
-        self.assertTrue(transition.is_available('-'))
-        self.assertFalse(transition.is_available('a'))
+class StateTest(ut.TestCase):
+    def test_returns_only_matching_transitions(self):
+        state = State(0)
+        avail_trans = TransitionStub(set(['a']))
+        unavail_trans = TransitionStub(set())
+        state.add_path(avail_trans, 1)
+        state.add_path(unavail_trans, 2)
+        paths = state.available_paths('a')
+        self.assertEquals(1, len(paths))
 
 
 class NFA:
@@ -92,7 +75,8 @@ class NFA:
     def epsilon_closure(self, state):
         return self._table.epsilons(state)
 
-@ut.skip('')
+
+# @ut.skip('')
 class NFATest(ut.TestCase):
     min_trans_table = {
             0: ({}, [1]),
@@ -135,6 +119,7 @@ class NFATest(ut.TestCase):
         self.assertSetEqual(epsilon_closure5, set([1, 2, 3, 4, 5, 6]))
 
 
+# TODO:
 # Add a is_final_state(nodes)
 # Given a node_id and the next character, return the next state
 #   - If there is no next state, should we return "None" or the start state?
