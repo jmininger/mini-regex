@@ -26,6 +26,9 @@ class Stack:
         for elem in args:
             self._deque.append(elem)
 
+    def is_empty(self):
+        return len(self) == 0
+
 
 class StackTest(ut.TestCase):
     def test_accepts_variable_inputs(self):
@@ -47,6 +50,14 @@ class StackTest(ut.TestCase):
         self.assertTrue(s)
         s.pop()
         self.assertFalse(s)
+
+    def test_stack_is_empty(self):
+        s = Stack()
+        self.assertTrue(s.is_empty())
+        s.push(1)
+        self.assertFalse(s.is_empty())
+        s.pop()
+        self.assertTrue(s.is_empty())
 
 
 if __name__ == '__main__':
