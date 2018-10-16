@@ -74,7 +74,7 @@ class NFA:
         return self._table[state_id]
 
     def get_epsilon_transition(self, state_id):
-        state = self.get_state(self, state_id)
+        state = self.get_state(state_id)
         return state.available_paths('')
 
     @property
@@ -95,13 +95,35 @@ class NFA:
     #     self.__start_state = val
 
     def epsilon_closure(self, state_id):
-        # Ideas: Add a closure cache
+        """ Runs a simple DFS on the nfa using only epsilon transitions from
+        the start state """
+        # TODO: Add a closure cache
         #   Extract function from class and make it normal function
+
         explored = set()
         frontier = stack.Stack()
+        has_cycle_at_start = False
         state = self.get_state(state_id)
         frontier.push(state.id)
-        while not frontier.
+
+        while not frontier.is_empty():
+            state = self.get_state(frontier.top())
+            frontier.pop()
+            epsilons = self.get_epsilon_transition(state.id)
+            for epsilon in epsilons:
+                if epsilon not in explored:
+                    frontier.push(epsilon)
+                if epsilon == state_id:
+                    has_cycle_at_start = True
+            explored.add(state.id)
+
+        # If a node has been explored, it belongs in the epsilon closure
+        # with the exception of the start node. The start node should only
+        # remain in the closure if it can be reached from any other node in the
+        # closure (creating a cycle)
+        if not has_cycle_at_start:
+            explored.remove(state_id)
+        return explored
 
 
 class StateStub(State):
@@ -121,7 +143,7 @@ class StateStub(State):
 # @ut.skip('')
 class NFATest(ut.TestCase):
     min_trans_table = {
-            0: StateStub(0, {'': 1}),
+            0: StateStub(0, {'': [1]}),
             1: StateStub(1, {})
             }
 
@@ -141,33 +163,36 @@ class NFATest(ut.TestCase):
 
     def test_calculates_epsilon_closure(self):
         trans_table = {
-                0: StateStub({}, [1, 2]),
+                0: StateStub(0, {'': [1, 2]}),
                 1: StateStub(1, {'a': [5], '': [4]}),
-                2: StateStub(2, {'': 3}),
-                3: StateStub(3, {'': 1}),
+                2: StateStub(2, {'': [3]}),
+                3: StateStub(3, {'': [1]}),
                 4: StateStub(4, {}),
                 5: StateStub(5, {'': [6]}),
-                6: StateStub(6, {'': [1]})
+                6: StateStub(6, {'': [0, 5]})
                 }
         nfa = NFA(trans_table, 0, [4])
         # Makes sure that a closure does not include itself
-        # self.assertSetEqual(epsilon_closure0, set([0, 2, 3, 4]))
         epsilon_closure0 = nfa.epsilon_closure(0)
-        self.assertSetEqual(epsilon_closure0, set([0, 2, 3, 4]))
+        self.assertSetEqual(epsilon_closure0, set([1, 2, 3, 4]))
 
         epsilon_closure4 = nfa.epsilon_closure(4)
         self.assertSetEqual(epsilon_closure4, set([]))
 
+        # This instance ensures that the closure includes the origin state if
+        # there is a cycle in the graph
         epsilon_closure5 = nfa.epsilon_closure(5)
-        self.assertSetEqual(epsilon_closure5, set([1, 2, 3, 4, 5, 6]))
+        self.assertSetEqual(epsilon_closure5, set([0, 1, 2, 3, 4, 5, 6]))
+
+
 # Should calculate next
 # Should automatically calculate the epsilon closure and take care of
 #  any cycles in the graph
 # Should be easy to compose
 # StateStub -> Rewrite the available_paths() func to return one elem on
 # epsilons and to return another on the other fake input
-
 # TODO:
+# add test making sure epsilon cycles terminate and dont cause infinite loop
 # Add a is_final_state(nodes)
 # Given a node_id and the next character, return the next state
 #   - If there is no next state, should we return "None" or the start state?
