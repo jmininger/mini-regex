@@ -1,5 +1,5 @@
 TODO*
-__pycache__/*
+*__pycache__/*
 *backup.py
 
 *.py.swp
