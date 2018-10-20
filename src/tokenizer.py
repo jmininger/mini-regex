@@ -26,13 +26,25 @@ class Token:
         return "val: " + str(self.val) + ", type: " + str(self.type) \
                 + ", location"
 
-    def is_char_type(self):
+    def is_char(self):
         return self.type in [TokenType.CHAR, TokenType.METACHAR]
 
-    def is_operator_type(self):
-        return self.type in [TokenType.UNION, TokenType.STAR]
+    def is_metachar(self):
+        return self.type == TokenType.METACHAR
 
-    def is_end_type(self):
+    def is_star(self):
+        return self.type == TokenType.STAR
+
+    def is_union(self):
+        return self.type == TokenType.UNION
+
+    def is_lparen(self):
+        return self.type == TokenType.LPAREN
+
+    def is_rparen(self):
+        return self.type == TokenType.RPAREN
+
+    def is_end(self):
         return self.type == TokenType.END
 
 
@@ -44,9 +56,15 @@ class Tokenizer:
 
         # _stream is a generator object
         self._stream = self._generate_tokens()
+        self.next()
+
+    def peek(self):
+        return self.peek_char
 
     def next(self):
-        return next(self._stream)
+        # consider renaming next to advance to make it clear that side effects
+        # occur
+        self.peek_char = next(self._stream)
 
     def _generate_tokens(self):
         is_normal_char = False
@@ -65,7 +83,7 @@ class Tokenizer:
 
     def _produce_special(self, c):
         if c is '|':
-            return TokenType.OR
+            return TokenType.UNION
         if c is '*':
             return TokenType.STAR
         if c is '(':
