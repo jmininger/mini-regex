@@ -1,5 +1,10 @@
 import unittest as ut
 from enum import Enum
+from nfa import NFA, NFAState
+from stack import Stack
+from tokenizer import Tokenizer
+from transitions import EpsilonTransition, CharLiteralTransition, \
+        MetaCharTransition
 
 
 '''
@@ -22,92 +27,200 @@ AST should only have op and operands and a tree like structure...operands
 should be values...nothing else in the tree is neccessary
 '''
 
-# from collections import namedtuple
+from collections import namedtuple
 
-# NodeType = namedtuple('NodeType', ['op', 'val'])
-
-
-# def ParseExp(stream):
-#     tok = stream.next()
-#     if tok == 'CHAR' or tok == 'LPAREN':
-#         t = ParseTerm(stream)
-#         e = ParseExp2(stream)
-#         # if e = command or + automata, evaluate t or e
-#         # else return t
-#         # Return types return both an operator and an automata where both can
-#         # be None
-#     else:
-#         return 'ERROR'
+NodeType = namedtuple('NodeType', ['op', 'graph'])
 
 
-# def ParseExp2(stream):
-#     tok = stream.next()
-#     if tok == 'OR':
-#         return NodeType('OR', parseExp(stream))
-#     elif tok == 'END' or tok == 'LPAREN':
-#         return NodeType('NONE', None)
-#     else:
-#         return NodeType('ERROR', None)
+class Ops(Enum):
+    CONCAT = 0
+    UNION = 1
+    KLEENE = 2
+    NOOP = 3
+    ERROR = 4
 
 
-# def ParseTerm(stream):
-#     tok = stream.next()
-#     if tok == 'CHAR' or tok == 'LPAREN':
-#         f = parseFactor(stream)
-#         t2 = parseTerm2(stream)
-#         return ANDCtor(f, t2)
-#     else:
-#         return NodeType('ERROR', None)
+class IDAllocator:
+    def __init__(self):
+        self._num = -1
+
+    def next(self):
+        self._num += 1
+        return self._num
 
 
-# def ParseTerm2(stream):
-#     tok = stream.next()
-#     if tok in ['CHAR', 'LPAREN']:
-#         pass
-#     elif tok in ['RPAREN', 'OR', 'END']:
-#         return NodeType('NONE', None)
-#     else:
-#         return NodeType('ERROR', None)
+# Only eat up a char on a terminal, not on non-terminals
 
 
-# def ParseFactor(stream):
-#     tok = stream.next()
-#     if tok == 'CHAR' or tok == 'LPAREN':
-#         c = parseChar(stream)
-#         f2 = parseFactor2(stream)
-#         return KleeneOp(c)
-#     else:
-#         return NodeType('ERROR', None)
+class RegexParser:
+    def __init__(self, tokenizer, allocator=IDAllocator()):
+        self.tokenizer = tokenizer
+        self.id_alloc = allocator
+
+    def construct_nfa(self):
+        # Turn start, end tuple into an nfa
+        return self.parse_exp()
+
+    def parse_exp(self):
+        tok = self.tokenizer.peek()
+        if tok.is_char() or tok.is_lparen():
+            term = self.parse_term()
+            exp2 = self.parse_exp2()
+            if exp2.op == Ops.UNION:
+                return union(term, exp2.graph, self.id_alloc)
+            else:
+                return term
+            # Return types return both an operator and an automata where both
+            # can be None
+        else:
+            return 'ERROR'
+
+    def parse_exp2(self):
+        tok = self.tokenizer.peek()
+        if tok.is_union():
+            self.tokenizer.next()
+            return NodeType(Ops.UNION, self.parse_exp())
+        elif tok.is_end() or tok.is_lparen():
+            # self.tokenizer.next()
+            return NodeType(Ops.NOOP, None)
+        else:
+            return NodeType(Ops.ERROR, None)
+
+    def parse_term(self):
+        tok = self.tokenizer.peek()
+        if tok.is_char() or tok.is_lparen():
+            factor = self.parse_factor()
+            term2 = self.parse_term2()
+            if term2.op == Ops.CONCAT:
+                return concat(factor, term2.graph)
+            else:
+                return factor
+        else:
+            return "HELLPPPP"
+        # THROW AN EXCEPTION
+            # return NodeType('ERROR', None)
+
+    def parse_term2(self):
+        tok = self.tokenizer.peek()
+        if tok.is_char() or tok.is_lparen():
+            return NodeType(Ops.CONCAT, self.parse_term())
+        elif tok.is_rparen() or tok.is_union() or tok.is_end():
+            return NodeType(Ops.NOOP, None)
+        else:
+            return NodeType(Ops.ERROR, None)
+
+    def parse_factor(self):
+        tok = self.tokenizer.peek()
+        if tok.is_char() or tok.is_lparen():
+            char = self.parse_char()
+            factor2 = self.parse_factor2()
+            if factor2.op == Ops.KLEENE:
+                return kstar(char, self.id_alloc)
+            else:
+                return char
+        else:
+            return NodeType(Ops.ERROR, None)
+
+    def parse_factor2(self):
+        tok = self.tokenizer.peek()
+        if tok.is_star():
+            self.tokenizer.next()
+            return NodeType(Ops.KLEENE, None)
+        else:
+            return NodeType(Ops.NOOP, None)
+
+    def parse_char(self):
+        tok = self.tokenizer.peek()
+        if tok.is_char() and tok.is_metachar():
+            self.tokenizer.next()
+            return construct_graph(MetaCharTransition(), self.id_alloc)
+        elif tok.is_char():
+            self.tokenizer.next()
+            return construct_graph(CharLiteralTransition(tok.val),
+                                   self.id_alloc)
+        elif tok.is_lparen():
+            self.tokenizer.next()
+            exp = self.parse_exp()
+            tok = self.tokenizer.peek()
+            if tok.is_rparen():
+                self.tokenizer.next()
+                return exp
+            else:
+                return NodeType(Ops.ERROR, None)
+        else:
+            return NodeType(Ops.ERROR, None)
 
 
-# def ParseFactor2(stream):
-#     tok = stream.next()
-#     if tok == 'STAR':
-#         return NodeType('STAR', None)
-#     else:
-#         return NodeType('NONE', None)
+def pretty_print_nfa(nfa_start):
+    explored = set()
+    frontier = Stack()
+    table = {}
+    frontier.push(nfa_start)
+    explored.add(nfa_start.id)
+
+    while not frontier.is_empty():
+        state = frontier.top()
+        frontier.pop()
+        epsilons = [dst.id for trans, dst in state.paths if isinstance(trans,
+                    EpsilonTransition)]
+        cost_paths = {trans._char: dst.id for trans, dst in state.paths if
+                      isinstance(trans, CharLiteralTransition)}
+
+        table[state.id] = cost_paths, epsilons
+        for _, dst in state.paths:
+            if dst.id not in explored:
+                explored.add(dst.id)
+                frontier.push(dst)
+
+    return table
 
 
-# def ParseChar(stream):
-#     tok = stream.next()
-#     if tok == 'CHAR':
-#         return Automata(tok.getVal())
-#     elif tok == 'LPAREN':
-#         e = parseExp(stream)
-#         tok = stream.getNext()
-#         if tok == 'RPAREN':
-#             return e
-#         else:
-#             return NodeType('ERROR', None)
-#     else:
-#         return NodeType('ERROR', None)
+class ParserTest(ut.TestCase):
+    def test_parse_char(self):
+        stream = Tokenizer('a(b|c)')
+        parser = RegexParser(stream)
+        nfa = parser.parse_exp()
+        start, end = nfa
+        table = pretty_print_nfa(start)
+        print(table)
 
 
+def concat(graph1, graph2):
+    g1_start, g1_end = graph1
+    g2_start, g2_end = graph2
+    g1_end.add_path(EpsilonTransition(), g2_start)
+    return (g1_start, g2_end)
 
-# from abc import ABCMeta
 
-# from enum import Enum
-# import unittest as ut
+def construct_graph(transition, counter):
+    start = NFAState(counter.next())
+    end = NFAState(counter.next())
+    start.add_path(transition, end)
+    return (start, end)
+
+
+def union(graph1, graph2, counter):
+    g1_start, g1_end = graph1
+    g2_start, g2_end = graph2
+    new_start = NFAState(counter.next())
+    new_start.add_path(EpsilonTransition(), g1_start)
+    new_start.add_path(EpsilonTransition(), g2_start)
+    new_end = NFAState(counter.next())
+    g1_end.add_path(EpsilonTransition(), new_end)
+    g2_end.add_path(EpsilonTransition(), new_end)
+    return (new_start, new_end)
+
+
+def kstar(graph, counter):
+    """ Kleene Star operator """
+    g_start, g_end = graph
+    new_start = NFAState(counter.next())
+    new_start.add_path(EpsilonTransition(), g_start)
+    new_end = NFAState(counter.next())
+    new_start.add_path(EpsilonTransition(), new_end)
+    g_end.add_path(EpsilonTransition(), new_end)
+    g_end.add_path(EpsilonTransition(), g_start)
+    return (new_start, new_end)
 
 
 # class TokenType(Enum):
@@ -115,21 +228,9 @@ should be values...nothing else in the tree is neccessary
 #     Char = 2
 
 
-# # instead of returning booleans, return an ast
-# class ASTNode:
-#     def __init__(self):
-#         self._children = []
-#         self._value = Token()
-
-
 '''
 E -> T | T+E
 T -> int | int+T | (E)
-
-bool CheckPn()
-bool CheckP()
-
-Construct.check -> calls other constructs in it and checks recursively
 
 Productions and grammar datastructures should be immutable
 Build the tree up and add to an element once you get a connecting point.
@@ -163,26 +264,12 @@ GrammarString Match, Production match(tries all grmstring matches)
 # All state_ids must be unique
 
 
-class Operations(Enum):
-    CONCAT = 0
-    OR = 1
-    KLEENE = 2
+class StreamStub:
+    def __init__(self):
+        self.iterable = []
 
-
-class NFABuilder:
-    pass
-
-
-# Test creates proper nfa for
-class TestNFABuilder(ut.TestCase):
-    def test_build_nfa_from_single_token(self):
-        builder = NFABuilder()
-        builder.combine('a', Operations.CONCAT)
-        expected_nfa = None  # start -> transition ->  end
-        test_compile('a')
-
-    def test_single_char(self):
-        nfa = NFABuilder(test_pattern)
+    def next(self):
+        return next(self.iterable)
 
 
 if __name__ == '__main__':
