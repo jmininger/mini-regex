@@ -5,12 +5,12 @@ from stack import Stack
 from tokenizer import Tokenizer
 from transitions import EpsilonTransition, CharLiteralTransition, \
         MetaCharTransition
+from collections import namedtuple
 
-
-'''
+"""
 Small recursive descent parser for regex
 
-IN: tokens, OUT: AST
+IN: tokens, OUT: Non-deterministic finite state machine
 
 CFG for regular expressions:
 E -> TE`
@@ -20,36 +20,48 @@ T`-> T | e
 F -> CF`
 F`-> '*' | e
 C -> char | ( E )
+"""
+
+# NodeType = namedtuple('NodeType', ['op', 'graph'])
 
 
-Grammar can be used as a tree like structure:
-AST should only have op and operands and a tree like structure...operands
-should be values...nothing else in the tree is neccessary
-'''
+class Option:
+    def __init__(self, val=None):
+        self.val = val
+        self.type = True if val else False
 
-from collections import namedtuple
+    def is_none(self):
+        return not self.type
 
-NodeType = namedtuple('NodeType', ['op', 'graph'])
+    def get_val(self):
+        if self.is_none():
+            raise Exception("attempt to access a None value in an Option type")
+        else:
+            return self.val
 
 
-class Ops(Enum):
-    CONCAT = 0
-    UNION = 1
-    KLEENE = 2
-    NOOP = 3
-    ERROR = 4
+# class Ops(Enum):
+#     CONCAT = 0
+#     UNION = 1
+#     KLEENE = 2
+#     NOOP = 3
+#     ERROR = 4
 
 
 class IDAllocator:
+
+    """ Responsible for providing each state with a unique_id. Not all states
+    are initialized at the same time, or even in the same scope, so it makes
+    sense to have an allocator that keeps track of which numbers have been used
+    """
+
     def __init__(self):
+        # Start at -1 so the first number produced is 0
         self._num = -1
 
-    def next(self):
+    def create_id(self):
         self._num += 1
         return self._num
-
-
-# Only eat up a char on a terminal, not on non-terminals
 
 
 class RegexParser:
@@ -63,74 +75,77 @@ class RegexParser:
 
     def parse_exp(self):
         tok = self.tokenizer.peek()
+        print("parse_e tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
             term = self.parse_term()
             exp2 = self.parse_exp2()
-            if exp2.op == Ops.UNION:
-                return union(term, exp2.graph, self.id_alloc)
+            if exp2:
+                return union(term, exp2, self.id_alloc)
             else:
                 return term
-            # Return types return both an operator and an automata where both
-            # can be None
         else:
-            return 'ERROR'
+            raise Exception("unexpected token in parse_exp at pos: x")
 
     def parse_exp2(self):
         tok = self.tokenizer.peek()
+        print("parse_e2 tok: " + str(tok.val))
         if tok.is_union():
             self.tokenizer.next()
-            return NodeType(Ops.UNION, self.parse_exp())
-        elif tok.is_end() or tok.is_lparen():
+            return self.parse_exp()
+        elif tok.is_end() or tok.is_rparen():
             # self.tokenizer.next()
-            return NodeType(Ops.NOOP, None)
+            return None
         else:
-            return NodeType(Ops.ERROR, None)
+            raise Exception("unexpected token in parse_exp2 at pos: x")
 
     def parse_term(self):
         tok = self.tokenizer.peek()
+        print("parse_t tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
             factor = self.parse_factor()
             term2 = self.parse_term2()
-            if term2.op == Ops.CONCAT:
-                return concat(factor, term2.graph)
+            if term2:
+                return concat(factor, term2)
             else:
                 return factor
         else:
-            return "HELLPPPP"
-        # THROW AN EXCEPTION
-            # return NodeType('ERROR', None)
+            raise Exception("unexpected token in parse_term at pos: x")
 
     def parse_term2(self):
         tok = self.tokenizer.peek()
+        print("parse_t2 tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
-            return NodeType(Ops.CONCAT, self.parse_term())
+            return self.parse_term()
         elif tok.is_rparen() or tok.is_union() or tok.is_end():
-            return NodeType(Ops.NOOP, None)
+            return None
         else:
-            return NodeType(Ops.ERROR, None)
+            raise Exception("unexpected token in parse_term2 at pos: x")
 
     def parse_factor(self):
         tok = self.tokenizer.peek()
+        print("parse_f tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
             char = self.parse_char()
             factor2 = self.parse_factor2()
-            if factor2.op == Ops.KLEENE:
+            if factor2:
                 return kstar(char, self.id_alloc)
             else:
                 return char
         else:
-            return NodeType(Ops.ERROR, None)
+            raise Exception("unexpected token in parse_factor at pos: x")
 
     def parse_factor2(self):
         tok = self.tokenizer.peek()
+        print("parse_f2 tok: " + str(tok.val))
         if tok.is_star():
             self.tokenizer.next()
-            return NodeType(Ops.KLEENE, None)
+            return True
         else:
-            return NodeType(Ops.NOOP, None)
+            return None
 
     def parse_char(self):
         tok = self.tokenizer.peek()
+        print("parse_c tok: " + str(tok.val))
         if tok.is_char() and tok.is_metachar():
             self.tokenizer.next()
             return construct_graph(MetaCharTransition(), self.id_alloc)
@@ -146,12 +161,12 @@ class RegexParser:
                 self.tokenizer.next()
                 return exp
             else:
-                return NodeType(Ops.ERROR, None)
+                raise Exception("unexpected token in parse_char at pos: x")
         else:
-            return NodeType(Ops.ERROR, None)
+            raise Exception("unexpected token in parse_char at pos: x")
 
 
-def pretty_print_nfa(nfa_start):
+def nfa_to_table(nfa_start):
     explored = set()
     frontier = Stack()
     table = {}
@@ -181,7 +196,7 @@ class ParserTest(ut.TestCase):
         parser = RegexParser(stream)
         nfa = parser.parse_exp()
         start, end = nfa
-        table = pretty_print_nfa(start)
+        table = nfa_to_table(start)
         print(table)
 
 
@@ -193,8 +208,8 @@ def concat(graph1, graph2):
 
 
 def construct_graph(transition, counter):
-    start = NFAState(counter.next())
-    end = NFAState(counter.next())
+    start = NFAState(counter.create_id())
+    end = NFAState(counter.create_id())
     start.add_path(transition, end)
     return (start, end)
 
@@ -202,10 +217,10 @@ def construct_graph(transition, counter):
 def union(graph1, graph2, counter):
     g1_start, g1_end = graph1
     g2_start, g2_end = graph2
-    new_start = NFAState(counter.next())
+    new_start = NFAState(counter.create_id())
     new_start.add_path(EpsilonTransition(), g1_start)
     new_start.add_path(EpsilonTransition(), g2_start)
-    new_end = NFAState(counter.next())
+    new_end = NFAState(counter.create_id())
     g1_end.add_path(EpsilonTransition(), new_end)
     g2_end.add_path(EpsilonTransition(), new_end)
     return (new_start, new_end)
@@ -214,54 +229,13 @@ def union(graph1, graph2, counter):
 def kstar(graph, counter):
     """ Kleene Star operator """
     g_start, g_end = graph
-    new_start = NFAState(counter.next())
+    new_start = NFAState(counter.create_id())
     new_start.add_path(EpsilonTransition(), g_start)
-    new_end = NFAState(counter.next())
+    new_end = NFAState(counter.create_id())
     new_start.add_path(EpsilonTransition(), new_end)
     g_end.add_path(EpsilonTransition(), new_end)
     g_end.add_path(EpsilonTransition(), g_start)
     return (new_start, new_end)
-
-
-# class TokenType(Enum):
-#     Operator = 1
-#     Char = 2
-
-
-'''
-E -> T | T+E
-T -> int | int+T | (E)
-
-Productions and grammar datastructures should be immutable
-Build the tree up and add to an element once you get a connecting point.
-Be prepared to remove a node from the tree when it is not
-
-Use recursive calls to emulate a parse tree and to hold the state for it,
-but only hold the state in an ast
-
-Ultimately two recursive calls: check if grammar matches and recurse down,
-otherwise send no back up
---Recursive call either returns a node that is the root of a syntax tree
-(operation?) or None, which implies that the construct does not match
-
-Problem: If the grammar interface is used to recursively check, we can't also
-put logic for the operations in there.
-Make grammar non-recursive. It either "might match", or doesn't.
-
-GrammarString Match, Production match(tries all grmstring matches)
-'''
-
-# test that the parser determines the proper order of things and that it adds
-# elements to the stack in the proper fashion. The parser should also be
-# responsible for character classes
-
-# test that the builder properly combines nfas. Start testing combos with
-# single cell nfas, and then add unit tests to make sure that it merges two
-# larger nfas properly.
-
-# An NFABuilder is responsible for combining 2 NFA's using a translation scheme
-# based on the operator between them
-# All state_ids must be unique
 
 
 class StreamStub:
