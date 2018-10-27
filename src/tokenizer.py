@@ -13,11 +13,12 @@ TokenType = Enum('TokenType',
 
 class Token:
     """
-        Represents the basic unit of an expression that the parser accepts
+        A Token is the basic unit of an expression that the parser accepts
     """
-    def __init__(self, tok_type, val):
+    def __init__(self, tok_type, val, start_pos):
         self.type = tok_type
         self.val = val
+        self.start_pos = start_pos  # position of the first char in the token
 
     def __eq__(self, other):
         return self.val == other.val and self.type == other.type
@@ -68,18 +69,18 @@ class Tokenizer:
 
     def _generate_tokens(self):
         is_normal_char = False
-        for char in self.pattern:
+        for char, pos in zip(self.pattern, range(len(self.pattern))):
             if char in self.special_chars and not is_normal_char:
                 tok_type = self._produce_special(char)
-                yield Token(tok_type, char)
+                yield Token(tok_type, char, pos)
             elif char == '\\' and not is_normal_char:
                 is_normal_char = True
             else:
                 # problem here: if escaped char, the size should be two not one
-                yield Token(TokenType.CHAR, char)
+                yield Token(TokenType.CHAR, char, pos)
                 if is_normal_char:
                     is_normal_char = False
-        yield Token(TokenType.END, '$')
+        yield Token(TokenType.END, '$', len(self.pattern))
 
     def _produce_special(self, c):
         if c is '|':

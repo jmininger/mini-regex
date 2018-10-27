@@ -1,11 +1,9 @@
 import unittest as ut
-from enum import Enum
 from nfa import NFA, NFAState
 from stack import Stack
 from tokenizer import Tokenizer
 from transitions import EpsilonTransition, CharLiteralTransition, \
         MetaCharTransition
-from collections import namedtuple
 
 """
 Small recursive descent parser for regex
@@ -21,31 +19,6 @@ F -> CF`
 F`-> '*' | e
 C -> char | ( E )
 """
-
-# NodeType = namedtuple('NodeType', ['op', 'graph'])
-
-
-class Option:
-    def __init__(self, val=None):
-        self.val = val
-        self.type = True if val else False
-
-    def is_none(self):
-        return not self.type
-
-    def get_val(self):
-        if self.is_none():
-            raise Exception("attempt to access a None value in an Option type")
-        else:
-            return self.val
-
-
-# class Ops(Enum):
-#     CONCAT = 0
-#     UNION = 1
-#     KLEENE = 2
-#     NOOP = 3
-#     ERROR = 4
 
 
 class IDAllocator:
@@ -64,6 +37,44 @@ class IDAllocator:
         return self._num
 
 
+def construct_graph(transition, id_alloc):
+    start = NFAState(id_alloc.create_id())
+    end = NFAState(id_alloc.create_id())
+    start.add_path(transition, end)
+    return (start, end)
+
+
+def concat(graph1, graph2):
+    g1_start, g1_end = graph1
+    g2_start, g2_end = graph2
+    g1_end.add_path(EpsilonTransition(), g2_start)
+    return (g1_start, g2_end)
+
+
+def union(graph1, graph2, id_alloc):
+    g1_start, g1_end = graph1
+    g2_start, g2_end = graph2
+    new_start = NFAState(id_alloc.create_id())
+    new_start.add_path(EpsilonTransition(), g1_start)
+    new_start.add_path(EpsilonTransition(), g2_start)
+    new_end = NFAState(id_alloc.create_id())
+    g1_end.add_path(EpsilonTransition(), new_end)
+    g2_end.add_path(EpsilonTransition(), new_end)
+    return (new_start, new_end)
+
+
+def kstar(graph, id_alloc):
+    """ Kleene Star operator """
+    g_start, g_end = graph
+    new_start = NFAState(id_alloc.create_id())
+    new_start.add_path(EpsilonTransition(), g_start)
+    new_end = NFAState(id_alloc.create_id())
+    new_start.add_path(EpsilonTransition(), new_end)
+    g_end.add_path(EpsilonTransition(), new_end)
+    g_end.add_path(EpsilonTransition(), g_start)
+    return (new_start, new_end)
+
+
 class RegexParser:
     def __init__(self, tokenizer, allocator=IDAllocator()):
         self.tokenizer = tokenizer
@@ -75,7 +86,6 @@ class RegexParser:
 
     def parse_exp(self):
         tok = self.tokenizer.peek()
-        print("parse_e tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
             term = self.parse_term()
             exp2 = self.parse_exp2()
@@ -84,11 +94,11 @@ class RegexParser:
             else:
                 return term
         else:
-            raise Exception("unexpected token in parse_exp at pos: x")
+            raise Exception("unexpected token in parse_exp at pos: " +
+                            str(tok.pos))
 
     def parse_exp2(self):
         tok = self.tokenizer.peek()
-        print("parse_e2 tok: " + str(tok.val))
         if tok.is_union():
             self.tokenizer.next()
             return self.parse_exp()
@@ -96,11 +106,11 @@ class RegexParser:
             # self.tokenizer.next()
             return None
         else:
-            raise Exception("unexpected token in parse_exp2 at pos: x")
+            raise Exception("unexpected token in parse_exp2 at pos: " +
+                            str(tok.pos))
 
     def parse_term(self):
         tok = self.tokenizer.peek()
-        print("parse_t tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
             factor = self.parse_factor()
             term2 = self.parse_term2()
@@ -109,21 +119,21 @@ class RegexParser:
             else:
                 return factor
         else:
-            raise Exception("unexpected token in parse_term at pos: x")
+            raise Exception("unexpected token in parse_term at pos: " +
+                            str(tok.pos))
 
     def parse_term2(self):
         tok = self.tokenizer.peek()
-        print("parse_t2 tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
             return self.parse_term()
         elif tok.is_rparen() or tok.is_union() or tok.is_end():
             return None
         else:
-            raise Exception("unexpected token in parse_term2 at pos: x")
+            raise Exception("unexpected token in parse_term2 at pos: " +
+                            str(tok.pos))
 
     def parse_factor(self):
         tok = self.tokenizer.peek()
-        print("parse_f tok: " + str(tok.val))
         if tok.is_char() or tok.is_lparen():
             char = self.parse_char()
             factor2 = self.parse_factor2()
@@ -132,11 +142,11 @@ class RegexParser:
             else:
                 return char
         else:
-            raise Exception("unexpected token in parse_factor at pos: x")
+            raise Exception("unexpected token in parse_factor at pos: " +
+                            str(tok.pos))
 
     def parse_factor2(self):
         tok = self.tokenizer.peek()
-        print("parse_f2 tok: " + str(tok.val))
         if tok.is_star():
             self.tokenizer.next()
             return True
@@ -145,7 +155,6 @@ class RegexParser:
 
     def parse_char(self):
         tok = self.tokenizer.peek()
-        print("parse_c tok: " + str(tok.val))
         if tok.is_char() and tok.is_metachar():
             self.tokenizer.next()
             return construct_graph(MetaCharTransition(), self.id_alloc)
@@ -161,12 +170,16 @@ class RegexParser:
                 self.tokenizer.next()
                 return exp
             else:
-                raise Exception("unexpected token in parse_char at pos: x")
+                raise Exception("unexpected token in parse_char at pos: " +
+                                str(tok.pos))
         else:
-            raise Exception("unexpected token in parse_char at pos: x")
+            raise Exception("unexpected token in parse_char at pos: " +
+                            str(tok.pos))
 
 
 def nfa_to_table(nfa_start):
+    """ Utility function that makes it easier to visualize an nfa and manually
+    check its accuracy """
     explored = set()
     frontier = Stack()
     table = {}
@@ -198,52 +211,6 @@ class ParserTest(ut.TestCase):
         start, end = nfa
         table = nfa_to_table(start)
         print(table)
-
-
-def concat(graph1, graph2):
-    g1_start, g1_end = graph1
-    g2_start, g2_end = graph2
-    g1_end.add_path(EpsilonTransition(), g2_start)
-    return (g1_start, g2_end)
-
-
-def construct_graph(transition, counter):
-    start = NFAState(counter.create_id())
-    end = NFAState(counter.create_id())
-    start.add_path(transition, end)
-    return (start, end)
-
-
-def union(graph1, graph2, counter):
-    g1_start, g1_end = graph1
-    g2_start, g2_end = graph2
-    new_start = NFAState(counter.create_id())
-    new_start.add_path(EpsilonTransition(), g1_start)
-    new_start.add_path(EpsilonTransition(), g2_start)
-    new_end = NFAState(counter.create_id())
-    g1_end.add_path(EpsilonTransition(), new_end)
-    g2_end.add_path(EpsilonTransition(), new_end)
-    return (new_start, new_end)
-
-
-def kstar(graph, counter):
-    """ Kleene Star operator """
-    g_start, g_end = graph
-    new_start = NFAState(counter.create_id())
-    new_start.add_path(EpsilonTransition(), g_start)
-    new_end = NFAState(counter.create_id())
-    new_start.add_path(EpsilonTransition(), new_end)
-    g_end.add_path(EpsilonTransition(), new_end)
-    g_end.add_path(EpsilonTransition(), g_start)
-    return (new_start, new_end)
-
-
-class StreamStub:
-    def __init__(self):
-        self.iterable = []
-
-    def next(self):
-        return next(self.iterable)
 
 
 if __name__ == '__main__':

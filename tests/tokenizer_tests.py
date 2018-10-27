@@ -4,16 +4,16 @@ from tokenizer import Token, TokenType, Tokenizer
 
 class TestTokens(ut.TestCase):
     def test_equality(self):
-        t1 = Token(TokenType.CHAR, 'a')
-        t2 = Token(TokenType.CHAR, 'a')
-        t3 = Token(TokenType.CHAR, 'b')
+        t1 = Token(TokenType.CHAR, 'a', 0)
+        t2 = Token(TokenType.CHAR, 'a', 0)
+        t3 = Token(TokenType.CHAR, 'b', 0)
         self.assertEqual(t1, t2)
         self.assertNotEqual(t1, t3)
 
     def test_type_checks(self):
-        t1 = Token(TokenType.CHAR, 'a')
-        t2 = Token(TokenType.METACHAR, '.')
-        t3 = Token(TokenType.UNION, '|')
+        t1 = Token(TokenType.CHAR, 'a', 0)
+        t2 = Token(TokenType.METACHAR, '.', 0)
+        t3 = Token(TokenType.UNION, '|', 0)
         self.assertTrue(t1.is_char())
         self.assertTrue(t2.is_char())
         self.assertTrue(t3.is_union())
