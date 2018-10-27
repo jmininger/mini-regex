@@ -1,6 +1,3 @@
-import stack
-
-
 class NFAState:
     """ A state is nothing more than an ID and a list of
         transition -> destination_id tuples """
@@ -11,8 +8,8 @@ class NFAState:
 
     def __str__(self):
         header = "NFAState: " + str(self.id)
-        paths = [str(dst) for tran, dst in self.paths]
-        return header + " Paths: " + ", ".join(paths)
+        paths = [str(dst.id) for _, dst in self.paths]
+        return header + " Paths: " + ", ".join(paths) + "||"
 
     def __repr__(self):
         return str(self.id) + " " + str(self.paths)
@@ -29,67 +26,84 @@ class NFAState:
         return self.available_paths('')
 
 
-class NFA:  # Rename to NFAGraph?
-    def __init__(self, trans_table, start_state, end_states):
-        self._table = trans_table
+class NFA:
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
 
-        # Ensure that start_state and end_states are part of the automata
-        if start_state not in trans_table:
-            raise Exception('start state is not a valid state')
-        self._start_state = start_state
-        if not all([(state in self._table) for state in end_states]):
-            raise Exception('end states are not all valid states')
-        self._end_states = end_states
 
-    def get_state(self, state_id):
-        if state_id not in self._table:
-            raise Exception('invalid state id: ', state_id)
-        return self._table[state_id]
+class DFASimulator:  # NFARunner?
+    def __init__(self, nfa):
+        self.nfa = nfa
+        self.dfa = [nfa.start]
 
-    def get_epsilon_transition(self, state_id):
-        state = self.get_state(state_id)
-        return state.available_paths('')
+    # def advance_state(self, input):
+    #     explored = set()
+    #     for partial_state in self.dfa:
+    #         next_paths = partial_state.available_paths(input)
 
-    @property
-    def end_states(self):
-        return self._end_states
 
-    @property
-    def start_state(self):
-        return self._start_state
+# class NFA:  # Rename to NFAGraph?
+#     def __init__(self, trans_table, start_state, end_states):
+#         self._table = trans_table
 
-    # @start_state.setter
-    # def start_state(self, val):
-    #     """ TODO: Can this method be private? We don't want it accessed by
-    #         clients; only the constructor should use it """
+#         # Ensure that start_state and end_states are part of the automata
+#         if start_state not in trans_table:
+#             raise Exception('start state is not a valid state')
+#         self._start_state = start_state
+#         if not all([(state in self._table) for state in end_states]):
+#             raise Exception('end states are not all valid states')
+#         self._end_states = end_states
 
-    #     if val not in self._table:
-    #         raise Exception('start state is not a valid state')
-    #     self.__start_state = val
+#     def get_state(self, state_id):
+#         if state_id not in self._table:
+#             raise Exception('invalid state id: ', state_id)
+#         return self._table[state_id]
 
-    def epsilon_closure(self, state_id):
-        """ Runs a simple DFS on the nfa using only epsilon transitions from
-        the start state """
-        # TODO: Add a closure cache
-        #   Extract function from class and make it normal function
-        explored = set()  # TODO: Make this a bitmap
-        frontier = stack.Stack()
-        state = self.get_state(state_id)
-        start_states = state.epsilon_paths()
-        frontier.push(*start_states)
+#     def get_epsilon_transition(self, state_id):
+#         state = self.get_state(state_id)
+#         return state.available_paths('')
 
-        while not frontier.is_empty():
-            state = self.get_state(frontier.top())
-            frontier.pop()
-            epsilons = self.get_epsilon_transition(state.id)
-            for epsilon in epsilons:
-                if epsilon not in explored:
-                    frontier.push(epsilon)
-            explored.add(state.id)
-        return explored
+#     @property
+#     def end_states(self):
+#         return self._end_states
 
-    def is_final_state(self, state_id):
-        return state_id in self.end_states
+#     @property
+#     def start_state(self):
+#         return self._start_state
+
+#     # @start_state.setter
+#     # def start_state(self, val):
+#     #     """ TODO: Can this method be private? We don't want it accessed by
+#     #         clients; only the constructor should use it """
+
+#     #     if val not in self._table:
+#     #         raise Exception('start state is not a valid state')
+#     #     self.__start_state = val
+
+#     def epsilon_closure(self, state_id):
+#         """ Runs a simple DFS on the nfa using only epsilon transitions from
+#         the start state """
+#         # TODO: Add a closure cache
+#         #   Extract function from class and make it normal function
+#         explored = set()  # TODO: Make this a bitmap
+#         frontier = stack.Stack()
+#         state = self.get_state(state_id)
+#         start_states = state.epsilon_paths()
+#         frontier.push(*start_states)
+
+#         while not frontier.is_empty():
+#             state = self.get_state(frontier.top())
+#             frontier.pop()
+#             epsilons = self.get_epsilon_transition(state.id)
+#             for epsilon in epsilons:
+#                 if epsilon not in explored:
+#                     frontier.push(epsilon)
+#             explored.add(state.id)
+#         return explored
+
+#     def is_final_state(self, state_id):
+#         return state_id in self.end_states
 
 
 # What if the table is just used to build the nfa (so that states can reference

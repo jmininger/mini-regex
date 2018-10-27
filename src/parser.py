@@ -1,9 +1,9 @@
 import unittest as ut
-from nfa import NFA, NFAState
-from stack import Stack
-from tokenizer import Tokenizer
+from nfa import NFAState
+# from tokenizer import Tokenizer
 from transitions import EpsilonTransition, CharLiteralTransition, \
         MetaCharTransition
+# from util import table_to_nfa, nfa_to_table
 
 """
 Small recursive descent parser for regex
@@ -175,42 +175,6 @@ class RegexParser:
         else:
             raise Exception("unexpected token in parse_char at pos: " +
                             str(tok.pos))
-
-
-def nfa_to_table(nfa_start):
-    """ Utility function that makes it easier to visualize an nfa and manually
-    check its accuracy """
-    explored = set()
-    frontier = Stack()
-    table = {}
-    frontier.push(nfa_start)
-    explored.add(nfa_start.id)
-
-    while not frontier.is_empty():
-        state = frontier.top()
-        frontier.pop()
-        epsilons = [dst.id for trans, dst in state.paths if isinstance(trans,
-                    EpsilonTransition)]
-        cost_paths = {trans._char: dst.id for trans, dst in state.paths if
-                      isinstance(trans, CharLiteralTransition)}
-
-        table[state.id] = cost_paths, epsilons
-        for _, dst in state.paths:
-            if dst.id not in explored:
-                explored.add(dst.id)
-                frontier.push(dst)
-
-    return table
-
-
-class ParserTest(ut.TestCase):
-    def test_parse_char(self):
-        stream = Tokenizer('a(b|c)')
-        parser = RegexParser(stream)
-        nfa = parser.parse_exp()
-        start, end = nfa
-        table = nfa_to_table(start)
-        print(table)
 
 
 if __name__ == '__main__':
