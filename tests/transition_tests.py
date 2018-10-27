@@ -1,5 +1,5 @@
 import unittest as ut
-from transitions import CharLiteralTransition, MetaTransition, \
+from transitions import CharLiteralTransition, MetaCharTransition, \
                         CaseInsensitiveTransition, EpsilonTransition
 
 
@@ -10,7 +10,7 @@ class TransitionTest(ut.TestCase):
         self.assertFalse(transition.is_available('c'))
 
     def test_metachar_dot(self):
-        transition = MetaTransition()
+        transition = MetaCharTransition()
         self.assertTrue(transition.is_available('a'))
         self.assertTrue(transition.is_available('b'))
         self.assertFalse(transition.is_available('\n'))

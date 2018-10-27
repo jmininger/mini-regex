@@ -1,13 +1,21 @@
 import stack
 
 
-class State:
+class NFAState:
     """ A state is nothing more than an ID and a list of
-        transition -> node pairs """
+        transition -> destination_id tuples """
 
     def __init__(self, id):
         self.id = id
         self.paths = []
+
+    def __str__(self):
+        header = "NFAState: " + str(self.id)
+        paths = [str(dst) for tran, dst in self.paths]
+        return header + " Paths: " + ", ".join(paths)
+
+    def __repr__(self):
+        return str(self.id) + " " + str(self.paths)
 
     def add_path(self, transition, destination):
         path = (transition, destination)
@@ -64,13 +72,11 @@ class NFA:  # Rename to NFAGraph?
         the start state """
         # TODO: Add a closure cache
         #   Extract function from class and make it normal function
-
         explored = set()  # TODO: Make this a bitmap
         frontier = stack.Stack()
-        has_cycle_at_start = False
         state = self.get_state(state_id)
-        start_states = state.get_epsilon_transition()
-        frontier.push(start_states)
+        start_states = state.epsilon_paths()
+        frontier.push(*start_states)
 
         while not frontier.is_empty():
             state = self.get_state(frontier.top())
@@ -79,21 +85,18 @@ class NFA:  # Rename to NFAGraph?
             for epsilon in epsilons:
                 if epsilon not in explored:
                     frontier.push(epsilon)
-                if epsilon == state_id:
-                    has_cycle_at_start = True
             explored.add(state.id)
-
-        # If a node has been explored, it belongs in the epsilon closure
-        # with the exception of the start node. The start node should only
-        # remain in the closure if it can be reached from any other node in the
-        # closure (creating a cycle)
-        if not has_cycle_at_start:
-            explored.remove(state_id)
         return explored
 
     def is_final_state(self, state_id):
         return state_id in self.end_states
 
+
+# What if the table is just used to build the nfa (so that states can reference
+# other states, and the table is ultimately thrown away until we get a real
+# graph? This way we can cycle and enforce the invariant that an iterator can
+# not jump states randomly and must always abide by the nfa...
+# state -> get_next(some_action) uses polymorphism if a state is a final state
 
 # Should the iterators be able to plug any value into the state machine? Does
 # this make sense?

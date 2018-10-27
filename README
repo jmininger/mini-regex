@@ -2,9 +2,6 @@ A simple regular expression engine that parses rexeps, converts them into an
 NFA(non-deterministic finite automata) and runs it on input strings to find
 matches. 
 
-THIS IS AN INCOMPLETE PROJECT
-The stack and simulation parts are complete
-
 Patterns supported: 
 ab -- union
 a|b -- or

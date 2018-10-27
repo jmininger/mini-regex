@@ -1,4 +1,4 @@
-from nfa import State, NFA
+from nfa import NFAState, NFA
 from transitions import Transition
 import unittest as ut
 
@@ -15,9 +15,9 @@ class TransitionStub(Transition):
             return char in self.available_set
 
 
-class StateTest(ut.TestCase):
+class NFAStateTest(ut.TestCase):
     def test_returns_only_matching_transitions(self):
-        state = State(0)
+        state = NFAState(0)
         avail_trans = TransitionStub(set(['a']))
         unavail_trans = TransitionStub(set())
         state.add_path(avail_trans, 1)
@@ -27,7 +27,7 @@ class StateTest(ut.TestCase):
         self.assertListEqual([1], paths)
 
     def test_returns_only_epsilon_transitions_on_empty_str(self):
-        state = State(0)
+        state = NFAState(0)
         epsilon = TransitionStub(set(), True)
         normal_transition = TransitionStub(set(['a']))
         state.add_path(epsilon, 1)
@@ -36,8 +36,17 @@ class StateTest(ut.TestCase):
         result = state.available_paths('')
         self.assertListEqual(result, [1, 2])
 
+    def test_prints_string(self):
+        expected = "NFAState: 1 Paths: 2, 3"
+        state = NFAState(1)
+        epsilon = TransitionStub(set(), True)
+        normal_transition = TransitionStub(set(['a']))
+        state.add_path(epsilon, 2)
+        state.add_path(normal_transition, 3)
+        self.assertEqual(expected, str(state))
 
-class StateStub(State):
+
+class NFAStateStub(NFAState):
     def __init__(self, id, table):
         self.id = id
         self.table = table
@@ -52,8 +61,8 @@ class StateStub(State):
 
 class NFATest(ut.TestCase):
     min_trans_table = {
-            0: StateStub(0, {'': [1]}),
-            1: StateStub(1, {})
+            0: NFAStateStub(0, {'': [1]}),
+            1: NFAStateStub(1, {})
             }
 
     def test_start_state_is_valid_state(self):
@@ -72,13 +81,13 @@ class NFATest(ut.TestCase):
 
     def test_calculates_epsilon_closure(self):
         trans_table = {
-                0: StateStub(0, {'': [1, 2]}),
-                1: StateStub(1, {'a': [5], '': [4]}),
-                2: StateStub(2, {'': [3]}),
-                3: StateStub(3, {'': [1]}),
-                4: StateStub(4, {}),
-                5: StateStub(5, {'': [6]}),
-                6: StateStub(6, {'': [0, 5]})
+                0: NFAStateStub(0, {'': [1, 2]}),
+                1: NFAStateStub(1, {'a': [5], '': [4]}),
+                2: NFAStateStub(2, {'': [3]}),
+                3: NFAStateStub(3, {'': [1]}),
+                4: NFAStateStub(4, {}),
+                5: NFAStateStub(5, {'': [6]}),
+                6: NFAStateStub(6, {'': [0, 5]})
                 }
         nfa = NFA(trans_table, 0, [4])
         # Makes sure that a closure does not include itself

@@ -18,7 +18,7 @@ class EpsilonTransition(Transition):
         return True
 
 
-class MetaTransition(Transition):
+class MetaCharTransition(Transition):
     def is_available(self, char):
         return char != '\n'
 
