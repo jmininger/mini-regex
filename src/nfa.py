@@ -32,17 +32,6 @@ class NFA:
         self.end = end
 
 
-class DFASimulator:  # NFARunner?
-    def __init__(self, nfa):
-        self.nfa = nfa
-        self.dfa = [nfa.start]
-
-    # def advance_state(self, input):
-    #     explored = set()
-    #     for partial_state in self.dfa:
-    #         next_paths = partial_state.available_paths(input)
-
-
 # class NFA:  # Rename to NFAGraph?
 #     def __init__(self, trans_table, start_state, end_states):
 #         self._table = trans_table
