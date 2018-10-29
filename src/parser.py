@@ -1,5 +1,5 @@
 import unittest as ut
-from nfa import NFAState
+from nfa import NFAState, NFA
 # from tokenizer import Tokenizer
 from transitions import EpsilonTransition, CharLiteralTransition, \
         MetaCharTransition
@@ -82,7 +82,7 @@ class RegexParser:
 
     def construct_nfa(self):
         # Turn start, end tuple into an nfa
-        return self.parse_exp()
+        return NFA(*self.parse_exp())
 
     def parse_exp(self):
         tok = self.tokenizer.peek()

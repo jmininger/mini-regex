@@ -32,3 +32,6 @@ class DFASimulator:  # NFARunner?
 
     def reset(self):
         self.dfa = [self.nfa.start]
+
+    def is_active(self):
+        return len(self.dfa) != 0

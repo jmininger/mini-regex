@@ -1,4 +1,9 @@
 import unittest as ut
+from parser import RegexParser
+from tokenizer import Tokenizer
+from dfa_sim import DFASimulator
+
+from util import nfa_to_table
 
 
 class MiniRegex:
@@ -7,10 +12,28 @@ class MiniRegex:
         self._nfa = self._build_nfa(self._pattern)
 
     def _build_nfa(self, pattern_str):
-        pass
+        tokenizer = Tokenizer(pattern_str)
+        parser = RegexParser(tokenizer)
+        return parser.construct_nfa()
 
     def is_match(self, search_space):
-        return self._pattern in search_space
+        runner = DFASimulator(self._nfa)
+        print(nfa_to_table(runner.nfa.start))
+        for c in search_space:
+            print([state.id for state in runner.dfa])
+            if runner.advance_state(c):
+                return True
+            if not runner.is_active():
+                return False
+        return False
+        # for idx, char in zip(range(len(search_space)), search_space):
+        #     for c in search_space[idx+1:]:
+        #         if runner.is_active():
+        #             match = runner.advance_state(c)
+        #             if match:
+        #                 return True
+        #     runner.reset()
+        # return False
 
 
 # Everything should be feature first, and not worry about the implementation.
