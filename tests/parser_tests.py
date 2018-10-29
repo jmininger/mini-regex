@@ -5,19 +5,26 @@ import unittest as ut
 
 
 class ParserTest(ut.TestCase):
+    def test_concat_merges_two_states_to_one(self):
+        a_table = {0: ({'a': 1}, []), 1: ({}, [])}
+        a_nfa = table_to_nfa(a_table, 0, 1)
+        b_table = {2: ({'b': 3}, []), 3: ({}, [])}
+        b_nfa = table_to_nfa(b_table, 2, 3)
+        concat_graph = parser.concat(a_nfa, b_nfa)
+        actual_table = nfa_to_table(concat_graph.start)
+        expected_states = len(a_table.keys()) + len(b_table.keys()) - 1
+        self.assertEqual(len(actual_table.keys()), expected_states)
+
     def test_concat_adds_single_epsilon(self):
         expected = {
                 0: ({'a': 1}, []),
-                1: ({}, [2]),
-                2: ({'b': 3}, []),
+                1: ({'b': 3}, []),
                 3: ({}, [])}
         a_nfa = table_to_nfa({0: ({'a': 1}, []), 1: ({}, [])}, 0, 1)
         b_nfa = table_to_nfa({2: ({'b': 3}, []), 3: ({}, [])}, 2, 3)
         concat_graph = parser.concat(a_nfa, b_nfa)
-        actual = nfa_to_table(concat_graph[0])
-        self.assertSetEqual(set(expected.keys()), set(actual.keys()))
-        for state_id in actual.keys():
-            self.assertTupleEqual(actual[state_id], expected[state_id])
+        actual = nfa_to_table(concat_graph.start)
+        self.assertEqual(expected, actual)
 
     def test_union_adds_2_states(self):
         expected = {
@@ -31,8 +38,25 @@ class ParserTest(ut.TestCase):
         b_nfa = table_to_nfa({2: ({'b': 3}, []), 3: ({}, [])}, 2, 3)
         id_alloc = CounterStub(4)
         result_nfa = parser.union(a_nfa, b_nfa, id_alloc)
-        result = nfa_to_table(result_nfa[0])
+        result = nfa_to_table(result_nfa.start)
         self.assertEqual(expected, result)
+
+    def test_kstar(self):
+        a_nfa = table_to_nfa({0: ({'a': 1}, []), 1: ({}, [])}, 0, 1)
+        expected = {0: ({'a': 1}, []), 1: ({}, [3, 0]),
+                    2: ({}, [0, 3]), 3: ({}, [])}
+        id_alloc = CounterStub(2)
+        actual_nfa = parser.kstar(a_nfa, id_alloc)
+        actual = nfa_to_table(actual_nfa.start)
+        self.assertEqual(expected, actual)
+
+    def test_start_only_applies_to_most_recent_automata(self):
+        pass
+        # Write expected nfa table then parse the actual
+
+    def test_star(self):
+        pass
+        # (ab)* where star is applied to expression
 
 
 class CounterStub:

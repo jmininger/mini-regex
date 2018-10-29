@@ -41,38 +41,36 @@ def construct_graph(transition, id_alloc):
     start = NFAState(id_alloc.create_id())
     end = NFAState(id_alloc.create_id())
     start.add_path(transition, end)
-    return (start, end)
+    return NFA(start, end)
 
 
 def concat(graph1, graph2):
-    g1_start, g1_end = graph1.start, graph1.end
-    g2_start, g2_end = graph2.start, graph2.end
-    g1_end.add_path(EpsilonTransition(), g2_start)
-    return (g1_start, g2_end)
+    # Remove graph2.start by moving all of its paths over to graph2.end
+    for path in graph2.start.paths:
+        trans, dst_state = path
+        graph1.end.add_path(trans, dst_state)
+    return NFA(graph1.start, graph2.end)
 
 
 def union(graph1, graph2, id_alloc):
-    g1_start, g1_end = graph1.start, graph1.end
-    g2_start, g2_end = graph2.start, graph2.end
     new_start = NFAState(id_alloc.create_id())
-    new_start.add_path(EpsilonTransition(), g1_start)
-    new_start.add_path(EpsilonTransition(), g2_start)
+    new_start.add_path(EpsilonTransition(), graph1.start)
+    new_start.add_path(EpsilonTransition(), graph2.start)
     new_end = NFAState(id_alloc.create_id())
-    g1_end.add_path(EpsilonTransition(), new_end)
-    g2_end.add_path(EpsilonTransition(), new_end)
-    return (new_start, new_end)
+    graph1.end.add_path(EpsilonTransition(), new_end)
+    graph2.end.add_path(EpsilonTransition(), new_end)
+    return NFA(new_start, new_end)
 
 
 def kstar(graph, id_alloc):
     """ Kleene Star operator """
-    g_start, g_end = graph.start, graph.end
     new_start = NFAState(id_alloc.create_id())
-    new_start.add_path(EpsilonTransition(), g_start)
+    new_start.add_path(EpsilonTransition(), graph.start)
     new_end = NFAState(id_alloc.create_id())
     new_start.add_path(EpsilonTransition(), new_end)
-    g_end.add_path(EpsilonTransition(), new_end)
-    g_end.add_path(EpsilonTransition(), g_start)
-    return (new_start, new_end)
+    graph.end.add_path(EpsilonTransition(), new_end)
+    graph.end.add_path(EpsilonTransition(), graph.start)
+    return NFA(new_start, new_end)
 
 
 class RegexParser:
@@ -82,7 +80,7 @@ class RegexParser:
 
     def construct_nfa(self):
         # Turn start, end tuple into an nfa
-        return NFA(*self.parse_exp())
+        return self.parse_exp()
 
     def parse_exp(self):
         tok = self.tokenizer.peek()
@@ -103,7 +101,6 @@ class RegexParser:
             self.tokenizer.next()
             return self.parse_exp()
         elif tok.is_end() or tok.is_rparen():
-            # self.tokenizer.next()
             return None
         else:
             raise Exception("unexpected token in parse_exp2 at pos: " +
