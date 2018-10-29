@@ -1,4 +1,5 @@
 import parser
+from tokenizer import Tokenizer
 from util import nfa_to_table, table_to_nfa
 from nfa import NFAState
 import unittest as ut
@@ -16,6 +17,7 @@ class ParserTest(ut.TestCase):
         self.assertEqual(len(actual_table.keys()), expected_states)
 
     def test_concat_adds_single_epsilon(self):
+        # state 2 is removed by concat, as it is merged with state 1
         expected = {
                 0: ({'a': 1}, []),
                 1: ({'b': 3}, []),
@@ -50,13 +52,16 @@ class ParserTest(ut.TestCase):
         actual = nfa_to_table(actual_nfa.start)
         self.assertEqual(expected, actual)
 
-    def test_start_only_applies_to_most_recent_automata(self):
-        pass
-        # Write expected nfa table then parse the actual
+    def test_parenthesis_builds_inner_nfa_first(self):
+        # Note the difference between "(ab)*" and ab*
+        re_parser1 = parser.RegexParser(Tokenizer("(ab)*"))
+        nfa1 = re_parser1.construct_nfa()
+        table1 = nfa_to_table(nfa1.start)
 
-    def test_star(self):
-        pass
-        # (ab)* where star is applied to expression
+        re_parser2 = parser.RegexParser(Tokenizer("ab*"))
+        nfa2 = re_parser2.construct_nfa()
+        table2 = nfa_to_table(nfa2.start)
+        self.assertNotEqual(table1, table2)
 
 
 class CounterStub:
