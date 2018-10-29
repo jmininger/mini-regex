@@ -45,15 +45,15 @@ def construct_graph(transition, id_alloc):
 
 
 def concat(graph1, graph2):
-    g1_start, g1_end = graph1
-    g2_start, g2_end = graph2
+    g1_start, g1_end = graph1.start, graph1.end
+    g2_start, g2_end = graph2.start, graph2.end
     g1_end.add_path(EpsilonTransition(), g2_start)
     return (g1_start, g2_end)
 
 
 def union(graph1, graph2, id_alloc):
-    g1_start, g1_end = graph1
-    g2_start, g2_end = graph2
+    g1_start, g1_end = graph1.start, graph1.end
+    g2_start, g2_end = graph2.start, graph2.end
     new_start = NFAState(id_alloc.create_id())
     new_start.add_path(EpsilonTransition(), g1_start)
     new_start.add_path(EpsilonTransition(), g2_start)
@@ -65,7 +65,7 @@ def union(graph1, graph2, id_alloc):
 
 def kstar(graph, id_alloc):
     """ Kleene Star operator """
-    g_start, g_end = graph
+    g_start, g_end = graph.start, graph.end
     new_start = NFAState(id_alloc.create_id())
     new_start.add_path(EpsilonTransition(), g_start)
     new_end = NFAState(id_alloc.create_id())
