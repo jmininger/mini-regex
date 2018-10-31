@@ -3,8 +3,6 @@ from parser import RegexParser
 from tokenizer import Tokenizer
 from dfa_sim import DFASimulator
 
-from util import nfa_to_table
-
 
 class MiniRegex:
     def __init__(self, pattern):
@@ -16,11 +14,22 @@ class MiniRegex:
         parser = RegexParser(tokenizer)
         return parser.construct_nfa()
 
-    def is_match(self, search_space):
+    def find_match_atj(self, search_space):
+        """ Returns True iff there is a match starting at the first char of the
+        search_space argument """
         runner = DFASimulator(self._nfa)
-        print(nfa_to_table(runner.nfa.start))
         for c in search_space:
-            print([state.id for state in runner.dfa])
+            if runner.advance_state(c):
+                return True
+            if not runner.is_active():
+                return False
+        return False
+
+    def is_match(self, search_space):
+        """ Returns True iff there is a match starting at the first char of the
+        search_space argument """
+        runner = DFASimulator(self._nfa)
+        for c in search_space:
             if runner.advance_state(c):
                 return True
             if not runner.is_active():
@@ -34,6 +43,12 @@ class MiniRegex:
         #                 return True
         #     runner.reset()
         # return False
+
+    def first_match(self, search_space):
+        for i in range(len(search_space)):
+            if self.is_match(search_space[i:]):
+                return i
+        return None
 
 
 # Everything should be feature first, and not worry about the implementation.
@@ -52,15 +67,18 @@ class TestRegexEngine(ut.TestCase):
         search_str = 'Not a match'
         self.assertFalse(regex.is_match(search_str))
 
-    def test_reuse_pattern(self):
-        pass
+    # def test_can_match_patterns_after_first_char(self):
+    #     pattern = "hel*o"
+    #     regex = MiniRegex(pattern)
+    #     search_str = "hi hello"
+    #     self.assertEqual(regex.first_match(search_str), 3)
 
-    def test_first_match(self):
-        pass
+    def test_finds_first_match(self):
+        pattern = "hel*o"
+        regex = MiniRegex(pattern)
+        search_str = "hi hello"
+        self.assertTupleEqual((3, 7), regex.first_match(search_str))
 
-    def test_longer_match(self):  # scenario where regex gets chopped off but
-        # states remain
-        pass
 
 
 if __name__ == '__main__':

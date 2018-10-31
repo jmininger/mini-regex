@@ -9,3 +9,9 @@ a* -- Kleene star
 . -- (Metachar)
 (ab (c|d)) | e -- nested expressions
 
+TODO:
+^ match at the beginning
+$ match at the end of the string$
++ 1 or more matches
+? 0 or 1 matches
+*?, +?, ?? = non greedy

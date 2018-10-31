@@ -101,3 +101,19 @@ class Option:
             raise Exception("attempt to access a None value in an Option type")
         else:
             return self.val
+
+
+class Counter:
+
+    """ Responsible for providing each state with a unique_id. Not all states
+    are initialized at the same time, or even in the same scope, so it makes
+    sense to have an allocator that keeps track of which numbers have been used
+    """
+
+    def __init__(self):
+        # Start at -1 so the first number produced is 0
+        self._num = -1
+
+    def next(self):
+        self._num += 1
+        return self._num
