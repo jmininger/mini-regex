@@ -38,3 +38,16 @@ class DFASimTest(ut.TestCase):
         matcher = DFASimulator(nfa)
         self.assertTupleEqual((0, 0), matcher.advance_multi_state('a'))
         self.assertTupleEqual((0, 1), matcher.advance_multi_state('b'))
+
+    def test_(self):
+        # 'abc|bcde'
+        table = {14: ({}, [0, 6]), 6: ({'b': 7}, []), 7: ({'c': 9}, []),
+                 9: ({'d': 11}, []), 11: ({'e': 13}, []), 13: ({}, [15]),
+                 15: ({}, []), 0: ({'a': 1}, []), 1: ({'b': 3}, []),
+                 3: ({'c': 5}, []), 5: ({}, [15])}
+        nfa = table_to_nfa(table, 14, 15)
+        matcher = DFASimulator(nfa)
+        match = matcher.advance_multi_state('a')
+        self.assertIsNone(match)
+        self.assertListEqual([iter.substate.id for iter in
+                             matcher.dfa.get_iterators()], [1])

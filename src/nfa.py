@@ -18,12 +18,15 @@ class NFAState:
         path = (transition, destination)
         self.paths.append(path)
 
-    def available_paths(self, char):
+    def available_cost_paths(self, char):
+        """ Returns all available paths that require a character as input (that
+        cost) and that match the input char """
         return [destination for transition, destination in self.paths if
-                transition.is_available(char)]
+                transition.eats_input() and transition.is_available(char)]
 
     def epsilon_paths(self):
-        return self.available_paths('')
+        return [destination for transition, destination in self.paths if
+                not transition.eats_input()]
 
 
 class NFA:

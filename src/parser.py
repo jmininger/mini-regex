@@ -1,8 +1,9 @@
 import unittest as ut
 from nfa import NFAState, NFA
+
 # from tokenizer import Tokenizer
-from transitions import EpsilonTransition, CharLiteralTransition, \
-        MetaCharTransition
+from transitions import EpsilonTransition, CharLiteralTransition, MetaCharTransition
+
 # from util import table_to_nfa, nfa_to_table
 
 """
@@ -92,8 +93,7 @@ class RegexParser:
             else:
                 return term
         else:
-            raise Exception("unexpected token in parse_exp at pos: " +
-                            str(tok.pos))
+            raise Exception("unexpected token in parse_exp at pos: " + str(tok.pos))
 
     def parse_exp2(self):
         tok = self.tokenizer.peek()
@@ -103,8 +103,7 @@ class RegexParser:
         elif tok.is_end() or tok.is_rparen():
             return None
         else:
-            raise Exception("unexpected token in parse_exp2 at pos: " +
-                            str(tok.pos))
+            raise Exception("unexpected token in parse_exp2 at pos: " + str(tok.pos))
 
     def parse_term(self):
         tok = self.tokenizer.peek()
@@ -116,8 +115,7 @@ class RegexParser:
             else:
                 return factor
         else:
-            raise Exception("unexpected token in parse_term at pos: " +
-                            str(tok.pos))
+            raise Exception("unexpected token in parse_term at pos: " + str(tok.pos))
 
     def parse_term2(self):
         tok = self.tokenizer.peek()
@@ -126,8 +124,7 @@ class RegexParser:
         elif tok.is_rparen() or tok.is_union() or tok.is_end():
             return None
         else:
-            raise Exception("unexpected token in parse_term2 at pos: " +
-                            str(tok.pos))
+            raise Exception("unexpected token in parse_term2 at pos: " + str(tok.pos))
 
     def parse_factor(self):
         tok = self.tokenizer.peek()
@@ -139,8 +136,7 @@ class RegexParser:
             else:
                 return char
         else:
-            raise Exception("unexpected token in parse_factor at pos: " +
-                            str(tok.pos))
+            raise Exception("unexpected token in parse_factor at pos: " + str(tok.pos))
 
     def parse_factor2(self):
         tok = self.tokenizer.peek()
@@ -157,8 +153,7 @@ class RegexParser:
             return construct_graph(MetaCharTransition(), self.id_alloc)
         elif tok.is_char():
             self.tokenizer.next()
-            return construct_graph(CharLiteralTransition(tok.val),
-                                   self.id_alloc)
+            return construct_graph(CharLiteralTransition(tok.val), self.id_alloc)
         elif tok.is_lparen():
             self.tokenizer.next()
             exp = self.parse_exp()
@@ -167,12 +162,12 @@ class RegexParser:
                 self.tokenizer.next()
                 return exp
             else:
-                raise Exception("unexpected token in parse_char at pos: " +
-                                str(tok.pos))
+                raise Exception(
+                    "unexpected token in parse_char at pos: " + str(tok.pos)
+                )
         else:
-            raise Exception("unexpected token in parse_char at pos: " +
-                            str(tok.pos))
+            raise Exception("unexpected token in parse_char at pos: " + str(tok.pos))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ut.main()

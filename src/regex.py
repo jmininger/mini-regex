@@ -2,6 +2,7 @@ import unittest as ut
 from parser import RegexParser
 from tokenizer import Tokenizer
 from dfa_sim import DFASimulator
+import util
 
 
 class MiniRegex:
@@ -14,35 +15,37 @@ class MiniRegex:
         parser = RegexParser(tokenizer)
         return parser.construct_nfa()
 
-    def find_match_atj(self, search_space):
+    def find_match_at(self, search_space):
         """ Returns True iff there is a match starting at the first char of the
         search_space argument """
         runner = DFASimulator(self._nfa)
         for c in search_space:
-            if runner.advance_state(c):
+            if runner.advance_multi_state(c):
                 return True
             if not runner.is_active():
                 return False
         return False
 
-    def is_match(self, search_space):
-        """ Returns True iff there is a match starting at the first char of the
-        search_space argument """
+    def find_all_matches(self, search_space):
         runner = DFASimulator(self._nfa)
+        matches = {}  # start_index: end_index
         for c in search_space:
-            if runner.advance_state(c):
-                return True
-            if not runner.is_active():
-                return False
-        return False
-        # for idx, char in zip(range(len(search_space)), search_space):
-        #     for c in search_space[idx+1:]:
-        #         if runner.is_active():
-        #             match = runner.advance_state(c)
-        #             if match:
-        #                 return True
-        #     runner.reset()
-        # return False
+            match = runner.advance_multi_state(c)
+            if match:
+                print("MATCH: ", match)
+                start_idx, end_idx = match
+                matches[start_idx] = end_idx
+        return [(start, end) for start, end in matches.items()]
+
+    # def is_match(self, search_space):
+    #     search_space argument """
+    #     runner = DFASimulator(self._nfa)
+    #     for c in search_space:
+    #         if runner.advance_state(c):
+    #             return True
+    #         if not runner.is_active():
+    #             return False
+    #     return False
 
     def first_match(self, search_space):
         for i in range(len(search_space)):
@@ -54,34 +57,48 @@ class MiniRegex:
 # Everything should be feature first, and not worry about the implementation.
 # As long as it works, its ok.
 class TestRegexEngine(ut.TestCase):
+    def test_single_char_match(self):
+        pattern = "a"
+        regex = MiniRegex(pattern)
+        search_str = "a"
+        self.assertListEqual(regex.find_all_matches(search_str), [(0, 0)])
 
     def test_single_match(self):
-        pattern = '.el*o'
+        pattern = ".el*o"
         regex = MiniRegex(pattern)
-        search_str = 'Hello World!'
-        self.assertTrue(regex.is_match(search_str))
+        print(sorted([(a, b) for a, b in
+                      util.nfa_to_table(regex._nfa.start).items()]))
+        search_str = "Hello World!"
+        self.assertListEqual(regex.find_all_matches(search_str), [(0, 4)])
 
-        search_str = 'Telllloooooooee'
-        self.assertTrue(regex.is_match(search_str))
+        search_str = "Telllloooooooee"
+        self.assertListEqual(regex.find_all_matches(search_str), [(0, 6)])
 
-        search_str = 'Not a match'
-        self.assertFalse(regex.is_match(search_str))
+        search_str = "Not a match"
+        self.assertListEqual(regex.find_all_matches(search_str), [])
 
-    # def test_can_match_patterns_after_first_char(self):
-    #     pattern = "hel*o"
-    #     regex = MiniRegex(pattern)
-    #     search_str = "hi hello"
-    #     self.assertEqual(regex.first_match(search_str), 3)
-
-    def test_finds_first_match(self):
-        pattern = "hel*o"
+    def test_is_greedy(self):
+        pattern = 'a|ab'
         regex = MiniRegex(pattern)
-        search_str = "hi hello"
-        self.assertTupleEqual((3, 7), regex.first_match(search_str))
+        search_str = 'ab'
+        self.assertListEqual([(0, 1)], regex.find_all_matches(search_str))
+
+    def test_overlapping_matches(self):
+        pattern = 'abc|bcde'
+        regex = MiniRegex(pattern)
+        search_str = "abcde"
+        self.assertListEqual(regex.find_all_matches(search_str), [(0, 2)])
+
+    def test_matches_occuring_later(self):
+        pattern = 'abc|bcde'
+        regex = MiniRegex(pattern)
+        print(sorted([(a, b) for a, b in
+                     util.nfa_to_table(regex._nfa.start).items()]))
+        search_str = "kbcde"
+        self.assertListEqual(regex.find_all_matches(search_str), [(1, 4)])
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     ut.main()
 
 # Should work on files

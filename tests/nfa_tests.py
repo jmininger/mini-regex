@@ -14,6 +14,9 @@ class TransitionStub(Transition):
         else:
             return char in self.available_set
 
+    def eats_input(self):
+        return not self.is_epsilon
+
 
 class NFAStateTest(ut.TestCase):
     def test_returns_only_matching_transitions(self):
@@ -22,7 +25,7 @@ class NFAStateTest(ut.TestCase):
         unavail_trans = TransitionStub(set())
         state.add_path(avail_trans, 1)
         state.add_path(unavail_trans, 2)
-        paths = state.available_paths('a')
+        paths = state.available_cost_paths('a')
         self.assertEquals(1, len(paths))
         self.assertListEqual([1], paths)
 
@@ -33,8 +36,9 @@ class NFAStateTest(ut.TestCase):
         state.add_path(epsilon, 1)
         state.add_path(epsilon, 2)
         state.add_path(normal_transition, 3)
-        result = state.available_paths('')
-        self.assertListEqual(result, [1, 2])
+        result = state.available_cost_paths('')
+        self.assertListEqual(result, [])
+        self.assertListEqual(state.epsilon_paths(), [1, 2])
 
     def test_prints_string(self):
         expected = "NFAState: 1 Paths: 2, 3||"
@@ -44,19 +48,6 @@ class NFAStateTest(ut.TestCase):
         state.add_path(epsilon, NFAState(2))
         state.add_path(normal_transition, NFAState(3))
         self.assertEqual(expected, str(state))
-
-
-class NFAStateStub(NFAState):
-    def __init__(self, id, table):
-        self.id = id
-        self.table = table
-
-    def available_paths(self, char):
-        epsilons = self.table[''] if '' in self.table else []
-        if char in self.table:
-            return set((self.table[char]) + epsilons)
-        else:
-            return set(epsilons)
 
 
 # class NFATest(ut.TestCase):
