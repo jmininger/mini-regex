@@ -26,7 +26,7 @@ class NFAStateTest(ut.TestCase):
         state.add_path(avail_trans, 1)
         state.add_path(unavail_trans, 2)
         paths = state.available_cost_paths('a')
-        self.assertEquals(1, len(paths))
+        self.assertEqual(1, len(paths))
         self.assertListEqual([1], paths)
 
     def test_returns_only_epsilon_transitions_on_empty_str(self):

@@ -9,10 +9,10 @@ class Token:
         A Token is the basic unit of an expression that the parser accepts
     """
 
-    def __init__(self, tok_type, val, start_pos):
+    def __init__(self, tok_type, val, pos):
         self.type = tok_type
         self.val = val
-        self.start_pos = start_pos  # position of the first char in the token
+        self.pos = pos  # position of the first char in the token
 
     def __eq__(self, other):
         return self.val == other.val and self.type == other.type
@@ -49,6 +49,8 @@ class Token:
 
 
 class Tokenizer:
+    """ A token stream """
+
     special_chars = set(["|", "*", "(", ")", ".", "+"])
 
     def __init__(self, pattern):

@@ -6,20 +6,23 @@ class TestTokens(ut.TestCase):
     def test_equality(self):
         t1 = Token(TokenType.CHAR, 'a', 0)
         t2 = Token(TokenType.CHAR, 'a', 0)
-        t3 = Token(TokenType.CHAR, 'b', 0)
         self.assertEqual(t1, t2)
+
+        t3 = Token(TokenType.CHAR, 'b', 0)
         self.assertNotEqual(t1, t3)
 
     def test_type_checks(self):
         t1 = Token(TokenType.CHAR, 'a', 0)
-        t2 = Token(TokenType.METACHAR, '.', 0)
-        t3 = Token(TokenType.UNION, '|', 0)
         self.assertTrue(t1.is_char())
-        self.assertTrue(t2.is_char())
-        self.assertTrue(t3.is_union())
         self.assertFalse(t1.is_union())
-        self.assertFalse(t3.is_char())
         self.assertEqual(t1.type, TokenType.CHAR)
+
+        t2 = Token(TokenType.METACHAR, '.', 0)
+        self.assertTrue(t2.is_char())
+
+        t3 = Token(TokenType.UNION, '|', 0)
+        self.assertTrue(t3.is_union())
+        self.assertFalse(t3.is_char())
 
 
 class TestTokenizer(ut.TestCase):
@@ -33,9 +36,11 @@ class TestTokenizer(ut.TestCase):
 
     def test_special_tokens(self):
         t = Tokenizer('ab|c((d|.)*)*')
-        type_sequence = ['CHAR', 'CHAR', 'UNION', 'CHAR', 'LPAREN', 'LPAREN',
-                         'CHAR', 'UNION', 'METACHAR', 'RPAREN', 'STAR',
-                         'RPAREN', 'STAR', 'END']
+        type_sequence = [
+          'CHAR', 'CHAR', 'UNION', 'CHAR', 'LPAREN', 'LPAREN',
+          'CHAR', 'UNION', 'METACHAR', 'RPAREN', 'STAR',
+          'RPAREN', 'STAR', 'END'
+        ]
 
         test_types = [TokenType[t] for t in type_sequence]
         for expected_type in test_types:

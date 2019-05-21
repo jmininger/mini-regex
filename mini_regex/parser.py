@@ -19,8 +19,15 @@ E`-> '|'E | e
 T -> FT`
 T`-> T | e
 F -> CF`
-F`-> '*' | e
-C -> char | ( E )
+F`-> '*'|'?'|'+'| e
+C -> CharType | ( E )
+CharType -> Class | Char | MetaChar
+Char -> All ascii chars not including metachars or metachars with front slash
+MetaChars -> . | \\b | '|' | * | ? | + | ( | ) | [ | ]
+Class -> '[' InnerClass ']' | '[^' InnerClass ']'
+InnerClass -> Range | ClassChars
+Range -> ClassChars - ClassChars
+ClassChars -> Ascii chars, no special chars
 """
 
 
