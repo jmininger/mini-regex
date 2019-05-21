@@ -87,6 +87,7 @@ class RegexParser:
     def __init__(self, tokenizer, allocator=IDAllocator()):
         self.tokenizer = tokenizer
         self.id_alloc = allocator
+        # self.groups = [] #(nfaStart, nfaEnd)
 
     def construct_nfa(self):
         # Turn start, end tuple into an nfa
