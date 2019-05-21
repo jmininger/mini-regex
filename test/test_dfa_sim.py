@@ -1,5 +1,5 @@
-from dfa_sim import DFASimulator
-from util import table_to_nfa
+from mini_regex.dfa_sim import DFASimulator
+from mini_regex.util import table_to_nfa
 import unittest as ut
 
 

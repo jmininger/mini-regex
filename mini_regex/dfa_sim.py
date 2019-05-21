@@ -1,4 +1,4 @@
-from util import Stack
+from mini_regex.util import Stack
 import bisect
 
 
@@ -27,9 +27,10 @@ class DFAState:
 
     def iterators_at_age(self, age):
         idx = self.partial_states.index(age)
-        last_index = len(self.partial_state)\
-            - self.partial_states[::-1].index(age)
-        return self.partial_states[idx: last_index]
+        last_index = len(self.partial_state) - self.partial_states[::-1].index(
+            age
+        )
+        return self.partial_states[idx:last_index]
 
     def get_iterators(self):
         return self.partial_states
@@ -91,7 +92,7 @@ class DFASimulator:  # NFARunner?
 
                 # If a the edge leads to the final state, declare a match
                 if dst.id == self.nfa.end.id:
-                    for age in range(iter.age+1, self.current_age):
+                    for age in range(iter.age + 1, self.current_age):
                         self.age_restrictions.add(age)
                     match = (iter.age, self.current_age)
 
@@ -108,7 +109,7 @@ class DFASimulator:  # NFARunner?
                         next_state.add_iterator(NFAIterator(dst, iter.age))
                         # If the edge leads to the final state, declare a match
                     if dst.id == self.nfa.end.id:
-                        for age in range(iter.age+1, self.current_age):
+                        for age in range(iter.age + 1, self.current_age):
                             self.age_restrictions.add(age)
                         match = (iter.age, self.current_age)
 

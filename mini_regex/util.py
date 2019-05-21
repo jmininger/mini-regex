@@ -1,6 +1,6 @@
 from collections import deque
-from nfa import NFAState, NFA
-from transitions import CharLiteralTransition, EpsilonTransition
+from mini_regex.nfa import NFAState, NFA
+from mini_regex.transitions import CharLiteralTransition, EpsilonTransition
 
 
 def table_to_nfa(table, start_state, end_state):
@@ -20,6 +20,7 @@ class Stack:
     """ Wrapper class around deque that only allows
         user to push/pop on the right
     """
+
     def __init__(self, iterable=[]):
         self._deque = deque(iterable)
 
@@ -56,10 +57,16 @@ def nfa_to_table(nfa_start):
     while not frontier.is_empty():
         state = frontier.top()
         frontier.pop()
-        epsilons = [dst.id for trans, dst in state.paths if isinstance(trans,
-                    EpsilonTransition)]
-        cost_paths = {trans._char: dst.id for trans, dst in state.paths if
-                      isinstance(trans, CharLiteralTransition)}
+        epsilons = [
+            dst.id
+            for trans, dst in state.paths
+            if isinstance(trans, EpsilonTransition)
+        ]
+        cost_paths = {
+            trans._char: dst.id
+            for trans, dst in state.paths
+            if isinstance(trans, CharLiteralTransition)
+        }
 
         table[state.id] = cost_paths, epsilons
         for _, dst in state.paths:

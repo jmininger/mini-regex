@@ -1,7 +1,7 @@
-import parser
-from tokenizer import Tokenizer
-from util import nfa_to_table, table_to_nfa
-from nfa import NFAState
+import mini_regex.parser as parser
+from mini_regex.tokenizer import Tokenizer
+from mini_regex.util import nfa_to_table, table_to_nfa
+# from mini_regex.nfa import NFAState
 import unittest as ut
 
 

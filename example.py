@@ -1,4 +1,4 @@
-from src import regex
+from mini_regex import regex
 
 pattern = '.el*o'
 regex = regex.MiniRegex(pattern)

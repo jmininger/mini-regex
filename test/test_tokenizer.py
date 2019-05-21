@@ -1,5 +1,5 @@
 import unittest as ut
-from tokenizer import Token, TokenType, Tokenizer
+from mini_regex.tokenizer import Token, TokenType, Tokenizer
 
 
 class TestTokens(ut.TestCase):

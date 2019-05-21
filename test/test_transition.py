@@ -1,5 +1,5 @@
 import unittest as ut
-from transitions import CharLiteralTransition, MetaCharTransition, \
+from mini_regex.transitions import CharLiteralTransition, MetaCharTransition, \
                         CaseInsensitiveTransition, EpsilonTransition
 
 

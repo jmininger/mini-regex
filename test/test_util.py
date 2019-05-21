@@ -1,5 +1,5 @@
 import unittest as ut
-import util
+import mini_regex.util as util
 
 
 class NFATableConverterTest(ut.TestCase):

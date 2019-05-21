@@ -15,3 +15,9 @@ $ match at the end of the string$
 + 1 or more matches
 ? 0 or 1 matches
 *?, +?, ?? = non greedy
+
+
+To run tests:
+```
+$ python3 -m unittest discover -s test/
+```

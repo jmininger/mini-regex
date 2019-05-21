@@ -1,8 +1,7 @@
 import unittest as ut
-from parser import RegexParser
-from tokenizer import Tokenizer
-from dfa_sim import DFASimulator
-import util
+from mini_regex.parser import RegexParser
+from mini_regex.tokenizer import Tokenizer
+from mini_regex.dfa_sim import DFASimulator
 
 
 class MiniRegex:
@@ -32,7 +31,6 @@ class MiniRegex:
         for c in search_space:
             match = runner.advance_multi_state(c)
             if match:
-                print("MATCH: ", match)
                 start_idx, end_idx = match
                 matches[start_idx] = end_idx
         return [(start, end) for start, end in matches.items()]
@@ -66,34 +64,31 @@ class TestRegexEngine(ut.TestCase):
     def test_single_match(self):
         pattern = ".el*o"
         regex = MiniRegex(pattern)
-        print(sorted([(a, b) for a, b in
-                      util.nfa_to_table(regex._nfa.start).items()]))
+
         search_str = "Hello World!"
         self.assertListEqual(regex.find_all_matches(search_str), [(0, 4)])
 
-        search_str = "Telllloooooooee"
+        search_str = "Yelllloooooooee"
         self.assertListEqual(regex.find_all_matches(search_str), [(0, 6)])
 
         search_str = "Not a match"
         self.assertListEqual(regex.find_all_matches(search_str), [])
 
     def test_is_greedy(self):
-        pattern = 'a|ab'
+        pattern = "a|ab"
         regex = MiniRegex(pattern)
-        search_str = 'ab'
+        search_str = "ab"
         self.assertListEqual([(0, 1)], regex.find_all_matches(search_str))
 
     def test_overlapping_matches(self):
-        pattern = 'abc|bcde'
+        pattern = "abc|bcde"
         regex = MiniRegex(pattern)
         search_str = "abcde"
         self.assertListEqual(regex.find_all_matches(search_str), [(0, 2)])
 
     def test_matches_occuring_later(self):
-        pattern = 'abc|bcde'
+        pattern = "abc|bcde"
         regex = MiniRegex(pattern)
-        print(sorted([(a, b) for a, b in
-                     util.nfa_to_table(regex._nfa.start).items()]))
         search_str = "kbcde"
         self.assertListEqual(regex.find_all_matches(search_str), [(1, 4)])
 

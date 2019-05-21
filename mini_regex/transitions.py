@@ -1,9 +1,9 @@
 class Transition:
     def is_available(self, char):
-        return Exception('Abstract class')
+        return Exception("Abstract class")
 
     def eats_input(self):
-        return Exception('Abstract class')
+        return Exception("Abstract class")
 
 
 class CharLiteralTransition(Transition):
@@ -29,7 +29,7 @@ class EpsilonTransition(Transition):
 
 class MetaCharTransition(Transition):
     def is_available(self, char):
-        return char != '\n'
+        return char != "\n"
 
     def eats_input(self):
         return True

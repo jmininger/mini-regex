@@ -1,5 +1,5 @@
-from nfa import NFAState, NFA
-from transitions import Transition
+from mini_regex.nfa import NFAState
+from mini_regex.transitions import Transition
 import unittest as ut
 
 
