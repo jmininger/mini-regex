@@ -1,96 +1,66 @@
-from enum import Enum
-
-TokenType = Enum("TokenType",
-                 "CHAR LPAREN RPAREN UNION STAR END METACHAR")
-
-
 class Token:
     """
-        A Token is the basic unit of an expression that the parser accepts
+        A Token is the basic unit of an expression that the parser uses.
     """
 
-    def __init__(self, tok_type, val, pos):
-        self.type = tok_type
+    def __init__(self, val, pos, escaped=False, end=False):
         self.val = val
         self.pos = pos  # position of the first char in the token
+        self.escaped = escaped
+        self.end = end
 
     def __eq__(self, other):
-        return self.val == other.val and self.type == other.type
+        return self.val == other.val and self.escaped == other.escaped
 
     def __str__(self):
         return (
-            "val: "
-            + str(self.val)
-            + ", type: "
-            + str(self.type)
-            + ", location"
+            "esc: " + str(self.escaped) +
+            ", val: " + str(self.val) +
+            ", location: " + str(self.pos)
         )
 
-    def is_char(self):
-        return self.type in [TokenType.CHAR, TokenType.METACHAR]
+    def __repr__(self):
+        return str(self.val) + " " + str(self.escaped) + " " + str(self.pos)
 
-    def is_metachar(self):
-        return self.type == TokenType.METACHAR
-
-    def is_star(self):
-        return self.type == TokenType.STAR
-
-    def is_union(self):
-        return self.type == TokenType.UNION
-
-    def is_lparen(self):
-        return self.type == TokenType.LPAREN
-
-    def is_rparen(self):
-        return self.type == TokenType.RPAREN
+    def has_val(self, char, escaped=False):
+        return self.val == char and self.escaped == escaped
 
     def is_end(self):
-        return self.type == TokenType.END
+        return self.is_end
 
 
 class Tokenizer:
     """ A token stream """
 
-    special_chars = set(["|", "*", "(", ")", ".", "+"])
-
     def __init__(self, pattern):
         self.pattern = pattern
-
         # _stream is a generator object
         self._stream = self._generate_tokens()
-        self.next()
+        self.peek_char = None
+        # sets 'self.peek_char'
+        self.advance()
 
     def peek(self):
         return self.peek_char
 
-    def next(self):
-        # consider renaming next to advance to make it clear that side effects
-        # occur
+    def advance(self):
         self.peek_char = next(self._stream)
 
     def _generate_tokens(self):
-        is_normal_char = False
-        for char, pos in zip(self.pattern, range(len(self.pattern))):
-            if char in self.special_chars and not is_normal_char:
-                tok_type = self._produce_special(char)
-                yield Token(tok_type, char, pos)
-            elif char == "\\" and not is_normal_char:
-                is_normal_char = True
-            else:
-                # problem here: if escaped char, the size should be two not one
-                yield Token(TokenType.CHAR, char, pos)
-                if is_normal_char:
-                    is_normal_char = False
-        yield Token(TokenType.END, "$", len(self.pattern))
+        pattern = self.pattern
+        pattern_len = len(pattern)
 
-    def _produce_special(self, c):
-        if c is "|":
-            return TokenType.UNION
-        if c is "*":
-            return TokenType.STAR
-        if c is "(":
-            return TokenType.LPAREN
-        if c is ")":
-            return TokenType.RPAREN
-        if c is ".":
-            return TokenType.METACHAR
+        escaped_flag = False
+        for char, pos in zip(pattern, range(pattern_len)):
+            if escaped_flag:
+                token = Token(char, pos-1, True)
+                escaped_flag = False
+                yield token
+            elif char is "\\":
+                escaped_flag = True
+            else:
+                token = Token(char, pos)
+                yield token
+
+        # Stream is empty, return the EOF token
+        yield Token("", -1, False, True)
