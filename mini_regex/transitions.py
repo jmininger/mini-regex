@@ -1,60 +1,36 @@
-# class Transition:
-#     def is_available(self, char):
-#         return Exception("Abstract class")
-
-#     def eats_input(self):
-#         return Exception("Abstract class")
-
-
-# class CharLiteralTransition(Transition):
-#     def __init__(self, char):
-#         self._char = char
-
-#     def is_available(self, char):
-#       """ Determines if a character is a member of this particular character
-#             class """
-#         return self._char == char
-
-#     def eats_input(self):
-#         return True
-
-
-# class EpsilonTransition(Transition):
-#     def is_available(self, char):
-#         return True
-
-#     def eats_input(self):
-#         return False
-
-
-# class MetaCharTransition(Transition):
-#     def is_available(self, char):
-#         return char != "\n"
-
-#     def eats_input(self):
-#         return True
-
-
-# class CaseInsensitiveTransition(CharLiteralTransition):
-#     def __init__(self, char):
-#         super().__init__(char)
-
-#     def is_available(self, char):
-#         return self._char.upper() == char.upper()
-
-#     def eats_input(self):
-#         return True
-
 class Transition:
-    def __init__(self, func, eats_input):
+    def __init__(self, func, eats_input, desc):
         self._is_available = func
         self._eats_input = eats_input
+        # descriptor for debug
+        self._desc = desc
+
+    def __str__(self):
+        return self._desc
 
     def is_available(self, char):
         return self._is_available(char)
 
     def eats_input(self):
         return self._eats_input
+
+
+def create_char_trans(char):
+    def f(c):
+        return c == char
+    return Transition(f, True, char)
+
+
+def create_epsilon_trans():
+    def f(c):
+        return True
+    return Transition(f, False, "epsilon")
+
+
+def create_metachar_trans():
+    def f(c):
+        return not c == '\n'
+    return Transition(f, True, "metachar")
 
 
 class RegexClassBuilder:
@@ -84,24 +60,6 @@ class RegexClassBuilder:
             return not f(char)
 
         if self.negate:
-            return Transition(f_neg, True)
+            return Transition(f_neg, True, "class")
         else:
-            return Transition(f, True)
-
-
-def create_char_trans(char):
-    def f(c):
-        return c == char
-    return Transition(f, True)
-
-
-def create_epsilon_trans():
-    def f(c):
-        return True
-    return Transition(f, False)
-
-
-def create_metachar_trans():
-    def f(c):
-        return not c == '\n'
-    return Transition(f, True)
+            return Transition(f, True, "class")

@@ -7,7 +7,7 @@ class Token:
         self.val = val
         self.pos = pos  # position of the first char in the token
         self.escaped = escaped
-        self.end = end
+        self._is_end = end
 
     def __eq__(self, other):
         return self.val == other.val and self.escaped == other.escaped
@@ -26,7 +26,7 @@ class Token:
         return self.val == char and self.escaped == escaped
 
     def is_end(self):
-        return self.is_end
+        return self._is_end
 
 
 class Tokenizer:
@@ -44,6 +44,7 @@ class Tokenizer:
         return self.peek_char
 
     def advance(self):
+        """ 'Eats' a token in the stream; no return value """
         self.peek_char = next(self._stream)
 
     def _generate_tokens(self):

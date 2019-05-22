@@ -38,3 +38,11 @@ class TestTokenizer(ut.TestCase):
         t = Tokenizer('')
         token = t.peek()
         self.assertTrue(token.is_end())
+
+    def test_end_func(self):
+        t = Tokenizer('a')
+        tok = t.peek()
+        self.assertFalse(tok.is_end())
+        t.advance()
+        tok = t.peek()
+        self.assertTrue(tok.is_end())
