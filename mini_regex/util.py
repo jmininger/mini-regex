@@ -101,6 +101,7 @@ def nfa_to_table(nfa_start):
             (str(trans), dst.id)
             for trans, dst in state.paths
         ]
+        paths.sort()
 
         table[state.id] = paths
         for _, dst in state.paths:

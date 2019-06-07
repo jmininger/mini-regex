@@ -7,11 +7,11 @@ class Transition:
     def __str__(self):
         return self._desc
 
-    # def __eq__(self, other):
-    #     return self._desc == other._desc
+    def __eq__(self, other):
+        return self._desc == other._desc
 
-    # def __hash__(self):
-    #     return hash(self._desc)
+    def __hash__(self):
+        return hash(self._desc)
 
     def is_available(self, char):
         """ Given the next char, tell if this transition is available as a path

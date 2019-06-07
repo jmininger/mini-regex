@@ -84,14 +84,14 @@ def kstar(graph, id_alloc):
     return NFA(new_start, new_end)
 
 
-# def repeater(graph, repeater_type, id_alloc):
-#     if repeater_type == "*":
-#         return kstar(graph, id_alloc)
-#     elif repeater_type == '+':
-#         kstar_graph = kstar(graph, id_alloc)
-#         return concat(graph, kstar_graph)
-#     else:
-#         raise Exception("repeater not recognized: " + repeater_type)
+def repeater(graph, repeater_tok, id_alloc):
+    if repeater_tok.has_val('*'):
+        return kstar(graph, id_alloc)
+    elif repeater_tok.has_val('+'):
+        kstar_graph = kstar(graph, id_alloc)
+        return concat(graph, kstar_graph)
+    else:
+        raise Exception("repeater not recognized: " + repeater_tok)
 
 
 class RegexParser:
@@ -181,9 +181,11 @@ class RegexParser:
 
         if self.is_start_of_char(tok) or tok.has_val('('):
             char = self.parse_char()
+
+            tok = self.tok_stream.peek()
             factor2 = self.parse_factor2()
             if factor2:
-                return kstar(char, self.id_alloc)
+                return repeater(char, tok, self.id_alloc)
             else:
                 return char
         else:
@@ -193,7 +195,7 @@ class RegexParser:
 
     def parse_factor2(self):
         tok = self.tok_stream.peek()
-        if tok.has_val('*'):
+        if tok.has_val('*') or tok.has_val('+'):
             self.tok_stream.advance()
             return True
         else:

@@ -9,7 +9,6 @@ class ParserTest(ut.TestCase):
     def test_concat_merges_two_states_to_one(self):
         a_table = {0: [("char: a", 1)], 1: []}
         a_nfa = table_to_nfa(a_table, 0, 1)
-        b_table = {2: ({'b': 3}, []), 3: ({}, [])}
         b_table = {2: [("char: b", 3)], 3: []}
         b_nfa = table_to_nfa(b_table, 2, 3)
         concat_graph = parser.concat(a_nfa, b_nfa)
@@ -49,7 +48,7 @@ class ParserTest(ut.TestCase):
         # represents : "a"
         nfa = table_to_nfa({0: [("char: a", 1)], 1: []}, 0, 1)
         expected = {0: [("char: a", 1)],
-                    1: [("epsilon", 3), ("epsilon", 0)],
+                    1: [("epsilon", 0), ("epsilon", 3)],
                     2: [("epsilon", 0), ("epsilon", 3)],
                     3: []}
         id_alloc = CounterStub(2)
@@ -61,9 +60,9 @@ class ParserTest(ut.TestCase):
     #     """ (a+) is equivalent to (aa*)
     #     """
     #     expected = {0: [("char: a", 1)],
-    #                 1: [("epsilon", 3), ("epsilon", 0)],
-    #                 2: [("epsilon", 0), ("epsilon", 3)],
+    #                 1: [("epsilon", 0), ("epsilon", 3)],
     #                 3: []}
+
     #     # represents = "a"
     #     nfa = table_to_nfa({0: [("char: a", 1)], 1: []}, 0, 1)
     #     id_alloc = CounterStub(2)
