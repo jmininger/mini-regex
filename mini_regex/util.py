@@ -14,7 +14,36 @@ class TransitionTypes(Enum):
 
 # Table = { StateID: [Transitions] }
 #   where Transition = (TransitionDesc, NextStateID)
-# { id: [("epsilon", someOtherID), ("char: b", otherID)] }
+
+# Ex) table = { 0: [("epsilon", 1), ("char: b", 2)] ... 2: [] }
+
+def nfa_to_table(nfa_start):
+    """ Makes it easier to visualize an nfa and manually check its accuracy
+    """
+    # Setup DFS-style visitation algo
+    explored = set()
+    frontier = Stack()
+    table = {}
+    frontier.push(nfa_start)
+    explored.add(nfa_start.id)
+
+    # Invariant - all parts of graph are connected so no need for outer
+    # for-loop to hit all nodes
+    while not frontier.is_empty():
+        state = frontier.top()
+        frontier.pop()
+        paths = [
+            (str(trans), dst.id)
+            for trans, dst in state.paths
+        ]
+        paths.sort()
+
+        table[state.id] = paths
+        for _, dst in state.paths:
+            if dst.id not in explored:
+                explored.add(dst.id)
+                frontier.push(dst)
+    return table
 
 
 def table_to_nfa(table, start_state, end_state):
@@ -29,6 +58,8 @@ def table_to_nfa(table, start_state, end_state):
 
 
 def trans_desc_to_trans(desc_str):
+    """ Takes a description str and converts it into an actual transition
+    """
     if desc_str == "epsilon":
         return create_epsilon_trans()
     elif desc_str == "metachar":
@@ -82,30 +113,3 @@ class Counter:
     def next(self):
         self._num += 1
         return self._num
-
-
-def nfa_to_table(nfa_start):
-    """ Makes it easier to visualize an nfa and manually check its accuracy
-    Uses a dfs strategy to construct the table
-    """
-    explored = set()
-    frontier = Stack()
-    table = {}
-    frontier.push(nfa_start)
-    explored.add(nfa_start.id)
-
-    while not frontier.is_empty():
-        state = frontier.top()
-        frontier.pop()
-        paths = [
-            (str(trans), dst.id)
-            for trans, dst in state.paths
-        ]
-        paths.sort()
-
-        table[state.id] = paths
-        for _, dst in state.paths:
-            if dst.id not in explored:
-                explored.add(dst.id)
-                frontier.push(dst)
-    return table

@@ -1,13 +1,16 @@
-import unittest as ut
-from mini_regex.nfa import NFAState, NFA
 from mini_regex.transitions import (
     RegexClassBuilder,
-    create_epsilon_trans,
     create_char_trans,
     create_metachar_trans,
 )
 
-# from util import table_to_nfa, nfa_to_table
+from mini_regex.thompson_constructions import (
+    construct_graph,
+    concat,
+    union,
+    repeater
+)
+
 
 """
 Small recursive descent parser for regex
@@ -15,13 +18,13 @@ Small recursive descent parser for regex
 IN: tokens, OUT: Non-deterministic finite state machine
 
 CFG for regular expressions:
-E -> TE`
-E`-> '|'E | e
-T -> FT`
-T`-> T | e
-F -> CF`
-F`-> '*'|'?'|'+'| e
-C -> CharType | ( E )
+Exp -> Term Exp`
+Exp`-> '|'Exp | empty
+Term -> Factor Term`
+Term`-> Term | empty
+Factor -> C Factor`
+Factor`-> '*'|'?'|'+'| empty
+C -> CharType | ( Exp )
 CharType -> Class | Char | MetaChar
 Char -> All ascii chars not including metachars or metachars with front slash
 MetaChars -> . | \\b | '|' | * | ? | + | ( | ) | [ | ]
@@ -48,50 +51,53 @@ class IDAllocator:
         return self._num
 
 
-def construct_graph(transition, id_alloc):
-    start = NFAState(id_alloc.create_id())
-    end = NFAState(id_alloc.create_id())
-    start.add_path(transition, end)
-    return NFA(start, end)
+# def construct_graph(transition, id_alloc):
+#     start = NFAState(id_alloc.create_id())
+#     end = NFAState(id_alloc.create_id())
+#     start.add_path(transition, end)
+#     return NFA(start, end)
 
 
-def concat(graph1, graph2):
-    # Remove graph2.start by moving all of its paths over to graph2.end
-    for path in graph2.start.paths:
-        trans, dst_state = path
-        graph1.end.add_path(trans, dst_state)
-    return NFA(graph1.start, graph2.end)
+# def concat(graph1, graph2):
+#     # Remove graph2.start by moving all of its paths over to graph2.end
+#     for path in graph2.start.paths:
+#         trans, dst_state = path
+#         graph1.end.add_path(trans, dst_state)
+#     return NFA(graph1.start, graph2.end)
 
 
-def union(graph1, graph2, id_alloc):
-    new_start = NFAState(id_alloc.create_id())
-    new_start.add_path(create_epsilon_trans(), graph1.start)
-    new_start.add_path(create_epsilon_trans(), graph2.start)
-    new_end = NFAState(id_alloc.create_id())
-    graph1.end.add_path(create_epsilon_trans(), new_end)
-    graph2.end.add_path(create_epsilon_trans(), new_end)
-    return NFA(new_start, new_end)
+# def union(graph1, graph2, id_alloc):
+#     new_start = NFAState(id_alloc.create_id())
+#     new_start.add_path(create_epsilon_trans(), graph1.start)
+#     new_start.add_path(create_epsilon_trans(), graph2.start)
+#     new_end = NFAState(id_alloc.create_id())
+#     graph1.end.add_path(create_epsilon_trans(), new_end)
+#     graph2.end.add_path(create_epsilon_trans(), new_end)
+#     return NFA(new_start, new_end)
 
 
-def kstar(graph, id_alloc):
-    """ Kleene Star operator """
-    new_start = NFAState(id_alloc.create_id())
-    new_start.add_path(create_epsilon_trans(), graph.start)
-    new_end = NFAState(id_alloc.create_id())
-    new_start.add_path(create_epsilon_trans(), new_end)
-    graph.end.add_path(create_epsilon_trans(), new_end)
-    graph.end.add_path(create_epsilon_trans(), graph.start)
-    return NFA(new_start, new_end)
+# def kstar(graph, id_alloc):
+#     """ Kleene Star operator """
+#     new_start = NFAState(id_alloc.create_id())
+#     new_start.add_path(create_epsilon_trans(), graph.start)
+#     new_end = NFAState(id_alloc.create_id())
+#     new_start.add_path(create_epsilon_trans(), new_end)
+#     graph.end.add_path(create_epsilon_trans(), new_end)
+#     graph.end.add_path(create_epsilon_trans(), graph.start)
+#     return NFA(new_start, new_end)
 
 
-def repeater(graph, repeater_tok, id_alloc):
-    if repeater_tok.has_val('*'):
-        return kstar(graph, id_alloc)
-    elif repeater_tok.has_val('+'):
-        kstar_graph = kstar(graph, id_alloc)
-        return concat(graph, kstar_graph)
-    else:
-        raise Exception("repeater not recognized: " + repeater_tok)
+# def repeater(graph, repeater_tok, id_alloc):
+#     if repeater_tok.has_val('*'):
+#         return kstar(graph, id_alloc)
+#     elif repeater_tok.has_val('+'):
+#         kstar_graph = kstar(graph, id_alloc)
+#         return concat(graph, kstar_graph)
+#     elif repeater_tok.has_val('?'):
+#         empty_graph = construct_graph(create_epsilon_trans(), id_alloc)
+#         return union(graph, empty_graph)
+#     else:
+#         raise Exception("repeater not recognized: " + repeater_tok)
 
 
 class RegexParser:
@@ -195,7 +201,7 @@ class RegexParser:
 
     def parse_factor2(self):
         tok = self.tok_stream.peek()
-        if tok.has_val('*') or tok.has_val('+'):
+        if tok.has_val('*') or tok.has_val('+') or tok.has_val('?'):
             self.tok_stream.advance()
             return True
         else:
@@ -206,7 +212,7 @@ class RegexParser:
         Regex classes represent a singular character and are contained within
         "[" and  "]"
         """
-        self.tok_stream.advance()  # advance passed '['
+        self.tok_stream.advance()  # advance past '['
         tok = self.tok_stream.peek()
 
         negate_flag = False
@@ -263,7 +269,7 @@ class RegexParser:
                 create_char_trans(tok.val), self.id_alloc
             )
 
-        # group start
+        # group start - currently has no effect
         elif tok.has_val('('):
             self.tok_stream.advance()
             exp = self.parse_exp()
@@ -279,7 +285,3 @@ class RegexParser:
             raise Exception(
                 "unexpected token in parse_char at pos: " + str(tok.pos)
             )
-
-
-if __name__ == "__main__":
-    ut.main()
