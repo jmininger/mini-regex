@@ -1,6 +1,13 @@
+class NFA:
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+
 class NFAState:
     """ A state is nothing more than an ID and a list of
-        transition -> destination_id tuples """
+    transition -> destination_id tuples
+    """
 
     def __init__(self, id):
         self.id = id
@@ -20,7 +27,8 @@ class NFAState:
 
     def available_cost_paths(self, char):
         """ Returns all available paths that require a character as input (that
-        cost) and that match the input char """
+        cost) and that match the input char
+        """
         return [
             destination
             for transition, destination in self.paths
@@ -33,13 +41,6 @@ class NFAState:
             for transition, destination in self.paths
             if not transition.eats_input()
         ]
-
-
-class NFA:
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
-
 
 # class NFA:  # Rename to NFAGraph?
 #     def __init__(self, trans_table, start_state, end_states):

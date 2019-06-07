@@ -6,14 +6,14 @@ class NFATableConverterTest(ut.TestCase):
     def test(self):
         # The following table describes the pattern: 'a(b|c)'
         table1 = {
-                    0: ({'a': 1}, []),
-                    1: ({}, [6]),
-                    6: ({}, [2, 4]),
-                    4: ({'c': 5}, []),
-                    5: ({}, [7]),
-                    7: ({}, []),
-                    2: ({'b': 3}, []),
-                    3: ({}, [7])
+                    0: [("char: a", 1)],
+                    1: [("epsilon", 6)],
+                    6: [("epsilon", 2), ("epsilon", 4)],
+                    4: [("char: c", 5)],
+                    5: [("epsilon", 7)],
+                    7: [],
+                    2: [("char: b", 3)],
+                    3: [("epsilon", 7)]
                 }
         nfa = util.table_to_nfa(table1, 0, 7)
         table2 = util.nfa_to_table(nfa.start)

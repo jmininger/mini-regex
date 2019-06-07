@@ -1,9 +1,10 @@
 import unittest as ut
 from mini_regex.nfa import NFAState, NFA
 from mini_regex.transitions import (
-    EpsilonTransition,
-    CharLiteralTransition,
-    MetaCharTransition,
+    RegexClassBuilder,
+    create_epsilon_trans,
+    create_char_trans,
+    create_metachar_trans,
 )
 
 # from util import table_to_nfa, nfa_to_table
@@ -64,38 +65,69 @@ def concat(graph1, graph2):
 
 def union(graph1, graph2, id_alloc):
     new_start = NFAState(id_alloc.create_id())
-    new_start.add_path(EpsilonTransition(), graph1.start)
-    new_start.add_path(EpsilonTransition(), graph2.start)
+    new_start.add_path(create_epsilon_trans(), graph1.start)
+    new_start.add_path(create_epsilon_trans(), graph2.start)
     new_end = NFAState(id_alloc.create_id())
-    graph1.end.add_path(EpsilonTransition(), new_end)
-    graph2.end.add_path(EpsilonTransition(), new_end)
+    graph1.end.add_path(create_epsilon_trans(), new_end)
+    graph2.end.add_path(create_epsilon_trans(), new_end)
     return NFA(new_start, new_end)
 
 
 def kstar(graph, id_alloc):
     """ Kleene Star operator """
     new_start = NFAState(id_alloc.create_id())
-    new_start.add_path(EpsilonTransition(), graph.start)
+    new_start.add_path(create_epsilon_trans(), graph.start)
     new_end = NFAState(id_alloc.create_id())
-    new_start.add_path(EpsilonTransition(), new_end)
-    graph.end.add_path(EpsilonTransition(), new_end)
-    graph.end.add_path(EpsilonTransition(), graph.start)
+    new_start.add_path(create_epsilon_trans(), new_end)
+    graph.end.add_path(create_epsilon_trans(), new_end)
+    graph.end.add_path(create_epsilon_trans(), graph.start)
     return NFA(new_start, new_end)
 
 
+# def repeater(graph, repeater_type, id_alloc):
+#     if repeater_type == "*":
+#         return kstar(graph, id_alloc)
+#     elif repeater_type == '+':
+#         kstar_graph = kstar(graph, id_alloc)
+#         return concat(graph, kstar_graph)
+#     else:
+#         raise Exception("repeater not recognized: " + repeater_type)
+
+
 class RegexParser:
-    def __init__(self, tokenizer, allocator=IDAllocator()):
-        self.tokenizer = tokenizer
-        self.id_alloc = allocator
-        # self.groups = [] #(nfaStart, nfaEnd)
+    special_chars = [
+            "|", "*", "(", ")", ".", "+", "[", "]", "?", "^", "$"
+            ]
+
+    def __init__(self, tokenizer):
+        self.tok_stream = tokenizer
+        self.id_alloc = IDAllocator()
+        self.groups = []
+
+    def is_special_token(self, token):
+        for char in self.special_chars:
+            if token.has_val(char):
+                return True
+        return False
+
+    def is_literal_token(self, token):
+        return not (self.is_special_token(token) or token.is_end())
+
+    def is_meta_token(self, token):
+        return token.has_val(".")
+
+    def is_start_of_char(self, tok):
+        return (self.is_meta_token(tok) or
+                tok.has_val("[") or
+                self.is_literal_token(tok))
 
     def construct_nfa(self):
-        # Turn start, end tuple into an nfa
         return self.parse_exp()
 
     def parse_exp(self):
-        tok = self.tokenizer.peek()
-        if tok.is_char() or tok.is_lparen():
+        tok = self.tok_stream.peek()
+
+        if self.is_start_of_char(tok) or tok.has_val('('):
             term = self.parse_term()
             exp2 = self.parse_exp2()
             if exp2:
@@ -104,24 +136,23 @@ class RegexParser:
                 return term
         else:
             raise Exception(
-                "unexpected token in parse_exp at pos: " + str(tok.pos)
-            )
+                    "unexpected token in parse_exp at pos: " + str(tok.pos))
 
     def parse_exp2(self):
-        tok = self.tokenizer.peek()
-        if tok.is_union():
-            self.tokenizer.next()
+        tok = self.tok_stream.peek()
+        if tok.has_val('|'):
+            self.tok_stream.advance()
             return self.parse_exp()
-        elif tok.is_end() or tok.is_rparen():
+        elif tok.is_end() or tok.has_val(')'):
             return None
         else:
             raise Exception(
-                "unexpected token in parse_exp2 at pos: " + str(tok.pos)
-            )
+                    "unexpected token in parse_exp2 at pos: " + str(tok.pos))
 
     def parse_term(self):
-        tok = self.tokenizer.peek()
-        if tok.is_char() or tok.is_lparen():
+        tok = self.tok_stream.peek()
+
+        if self.is_start_of_char(tok) or tok.has_val('('):
             factor = self.parse_factor()
             term2 = self.parse_term2()
             if term2:
@@ -134,10 +165,11 @@ class RegexParser:
             )
 
     def parse_term2(self):
-        tok = self.tokenizer.peek()
-        if tok.is_char() or tok.is_lparen():
+        tok = self.tok_stream.peek()
+
+        if self.is_start_of_char(tok) or tok.has_val('('):
             return self.parse_term()
-        elif tok.is_rparen() or tok.is_union() or tok.is_end():
+        elif tok.has_val(')') or tok.has_val('|') or tok.is_end():
             return None
         else:
             raise Exception(
@@ -145,8 +177,9 @@ class RegexParser:
             )
 
     def parse_factor(self):
-        tok = self.tokenizer.peek()
-        if tok.is_char() or tok.is_lparen():
+        tok = self.tok_stream.peek()
+
+        if self.is_start_of_char(tok) or tok.has_val('('):
             char = self.parse_char()
             factor2 = self.parse_factor2()
             if factor2:
@@ -159,29 +192,82 @@ class RegexParser:
             )
 
     def parse_factor2(self):
-        tok = self.tokenizer.peek()
-        if tok.is_star():
-            self.tokenizer.next()
+        tok = self.tok_stream.peek()
+        if tok.has_val('*'):
+            self.tok_stream.advance()
             return True
         else:
             return None
 
+    def parse_regex_class(self):
+        """ Parses a class.
+        Regex classes represent a singular character and are contained within
+        "[" and  "]"
+        """
+        self.tok_stream.advance()  # advance passed '['
+        tok = self.tok_stream.peek()
+
+        negate_flag = False
+        if tok.has_val('^'):
+            negate_flag = True
+            self.tok_stream.advance()
+            tok = self.tok_stream.peek()
+        builder = RegexClassBuilder(negate_flag)
+
+        prev_tok = None
+        range_start = None
+        while not tok.has_val(']'):
+            # Add a range
+            if prev_tok and tok.has_val('-'):
+                range_start = prev_tok
+                prev_tok = tok
+            elif prev_tok and prev_tok.has_val('-'):
+                builder.add_range((range_start.val, tok.val))
+                prev_tok = None
+                range_start = None
+            elif prev_tok:
+                builder.add_char(prev_tok.val)
+                prev_tok = tok
+            else:
+                prev_tok = tok
+            self.tok_stream.advance()
+            tok = self.tok_stream.peek()
+        if prev_tok:
+            builder.add_char(prev_tok.val)
+
+        self.tok_stream.advance()
+        return construct_graph(builder.create_trans(), self.id_alloc)
+
     def parse_char(self):
-        tok = self.tokenizer.peek()
-        if tok.is_char() and tok.is_metachar():
-            self.tokenizer.next()
-            return construct_graph(MetaCharTransition(), self.id_alloc)
-        elif tok.is_char():
-            self.tokenizer.next()
+        """ Turn a character into an automata.
+         A char is a anything represented by a two-state automata with a
+         singular transition that eats a char
+        """
+        tok = self.tok_stream.peek()
+
+        # regex class
+        if tok.has_val('['):
+            return self.parse_regex_class()
+
+        # metachar
+        elif tok.has_val('.'):
+            self.tok_stream.advance()
+            return construct_graph(create_metachar_trans(), self.id_alloc)
+
+        # char literal
+        elif self.is_literal_token(tok):
+            self.tok_stream.advance()
             return construct_graph(
-                CharLiteralTransition(tok.val), self.id_alloc
+                create_char_trans(tok.val), self.id_alloc
             )
-        elif tok.is_lparen():
-            self.tokenizer.next()
+
+        # group start
+        elif tok.has_val('('):
+            self.tok_stream.advance()
             exp = self.parse_exp()
-            tok = self.tokenizer.peek()
-            if tok.is_rparen():
-                self.tokenizer.next()
+            tok = self.tok_stream.peek()
+            if tok.has_val(')'):
+                self.tok_stream.advance()
                 return exp
             else:
                 raise Exception(

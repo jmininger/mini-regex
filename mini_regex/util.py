@@ -1,19 +1,42 @@
 from collections import deque
+from enum import Enum
 from mini_regex.nfa import NFAState, NFA
-from mini_regex.transitions import CharLiteralTransition, EpsilonTransition
+from mini_regex.transitions import (create_char_trans,
+                                    create_epsilon_trans,
+                                    create_metachar_trans)
+
+
+class TransitionTypes(Enum):
+    CHAR = 1
+    EPSILON = 2
+    CLASS = 3
+
+
+# Table = { StateID: [Transitions] }
+#   where Transition = (TransitionDesc, NextStateID)
+# { id: [("epsilon", someOtherID), ("char: b", otherID)] }
 
 
 def table_to_nfa(table, start_state, end_state):
     state_table = {id: NFAState(id) for id in table}
-    for id, entry in table.items():
+    for id, trans in table.items():
         state = state_table[id]
-        cost_trans = entry[0]
-        epsilon_trans = entry[1]
-        for edge, node in cost_trans.items():
-            state.add_path(CharLiteralTransition(edge), state_table[node])
-        for node in epsilon_trans:
-            state.add_path(EpsilonTransition(), state_table[node])
+        for edge in trans:
+            desc_str, dst_id = edge
+            trans_val = trans_desc_to_trans(desc_str)
+            state.add_path(trans_val, state_table[dst_id])
     return NFA(state_table[start_state], state_table[end_state])
+
+
+def trans_desc_to_trans(desc_str):
+    if desc_str == "epsilon":
+        return create_epsilon_trans()
+    elif desc_str == "metachar":
+        return create_metachar_trans()
+    elif desc_str[0:6] == "char: ":
+        return create_char_trans(desc_str[6])
+    else:
+        Exception("cannot convert " + desc_str + " to a transition")
 
 
 class Stack:
@@ -45,71 +68,6 @@ class Stack:
         return len(self) == 0
 
 
-def nfa_to_table(nfa_start):
-    """ Utility function that makes it easier to visualize an nfa and manually
-    check its accuracy """
-    explored = set()
-    frontier = Stack()
-    table = {}
-    frontier.push(nfa_start)
-    explored.add(nfa_start.id)
-
-    while not frontier.is_empty():
-        state = frontier.top()
-        frontier.pop()
-        epsilons = [
-            dst.id
-            for trans, dst in state.paths
-            if isinstance(trans, EpsilonTransition)
-        ]
-        cost_paths = {
-            trans._char: dst.id
-            for trans, dst in state.paths
-            if isinstance(trans, CharLiteralTransition)
-        }
-
-        table[state.id] = cost_paths, epsilons
-        for _, dst in state.paths:
-            if dst.id not in explored:
-                explored.add(dst.id)
-                frontier.push(dst)
-
-    return table
-
-
-class Option:
-    """ An Option type inspired by the type by the same name in OCaml and other
-    functional languages. Allows a value to either exist or is None otherwise.
-    The use of this type is debatable given python's dynamic types. I've added
-    it because I didn't like the idea of returning None in a function that
-    might also return a value, and I thought that this might make the code more
-    expressive
-
-    Example:
-        def foo(num):
-            if num % 2 == 0:
-                return Option(num)
-            else:
-                return Option()
-        x = foo(5)
-        if x.does_contain():
-            print(x.get_val())
-    """
-
-    def __init__(self, val=None):
-        self.val = val
-        self.type = True if val else False
-
-    def does_contain(self):
-        return self.type
-
-    def get_val(self):
-        if self.is_none():
-            raise Exception("attempt to access a None value in an Option type")
-        else:
-            return self.val
-
-
 class Counter:
 
     """ Responsible for providing each state with a unique_id. Not all states
@@ -124,3 +82,29 @@ class Counter:
     def next(self):
         self._num += 1
         return self._num
+
+
+def nfa_to_table(nfa_start):
+    """ Makes it easier to visualize an nfa and manually check its accuracy
+    Uses a dfs strategy to construct the table
+    """
+    explored = set()
+    frontier = Stack()
+    table = {}
+    frontier.push(nfa_start)
+    explored.add(nfa_start.id)
+
+    while not frontier.is_empty():
+        state = frontier.top()
+        frontier.pop()
+        paths = [
+            (str(trans), dst.id)
+            for trans, dst in state.paths
+        ]
+
+        table[state.id] = paths
+        for _, dst in state.paths:
+            if dst.id not in explored:
+                explored.add(dst.id)
+                frontier.push(dst)
+    return table
