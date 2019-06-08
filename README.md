@@ -10,7 +10,7 @@ matches.
   - `a*` -- Kleene star (0 or more matches)
   - `.` -- Metachar
   - `(ab(c|d))|e` -- nested expressions
-  - `\[^A-Zabc0-9]` -- regex classes with range and negation
+  - `[^A-Zabc0-9]` -- regex classes with range and negation
   - `?` -- 0 or 1 match
   - `+` -- 1 or more matches
   - `\\.` -- Backslash to escape special chars
