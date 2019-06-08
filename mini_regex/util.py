@@ -76,7 +76,10 @@ class Stack:
     """
 
     def __init__(self, iterable=[]):
-        self._deque = deque(iterable)
+        if len(iterable) == 0:
+            self._deque = deque()
+        else:
+            self._deque = deque(iterable)
 
     def __iter__(self):
         while self._deque:
@@ -84,6 +87,9 @@ class Stack:
 
     def __len__(self):
         return len(self._deque)
+
+    def __repr__(self):
+        return str(self._deque)
 
     def pop(self):
         return self._deque.pop()

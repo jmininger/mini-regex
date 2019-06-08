@@ -11,9 +11,10 @@ class DFASimTest(ut.TestCase):
         start_state = 0
         end_state = 1
         nfa = table_to_nfa(table, start_state, end_state)
-        matcher = DFASimulator(nfa)
-        has_match = matcher.advance_multi_state('b')
-        self.assertFalse(has_match)
+        runner = DFASimulator(nfa)
+        runner.advance_state('b')
+        match = runner.check_match()
+        self.assertIsNone(match)
 
     def test_single_char_match(self):
         table = {0: [("char: a", 1)],
@@ -21,25 +22,29 @@ class DFASimTest(ut.TestCase):
         start_state = 0
         end_state = 1
         nfa = table_to_nfa(table, start_state, end_state)
-        matcher = DFASimulator(nfa)
-        has_match = matcher.advance_multi_state('a')
-        self.assertTrue(has_match)
+        runner = DFASimulator(nfa)
+        runner.advance_state('a')
 
-    def test_greedy_matches(self):
-        # Represents "ab|a"
-        table = {0: [("char: a", 1)],
-                 1: [("char: b", 2)],
-                 2: [("epsilon", 6)],
-                 3: [("char: a", 4)],
-                 4: [("epsilon", 6)],
-                 5: [("epsilon", 0), ("epsilon", 3)],
-                 6: []}
-        nfa = table_to_nfa(table, 5, 6)
-        matcher = DFASimulator(nfa)
-        self.assertTupleEqual((0, 0), matcher.advance_multi_state('a'))
-        self.assertTupleEqual((0, 1), matcher.advance_multi_state('b'))
+        match_end = runner.check_match()
+        self.assertEqual(match_end, 1)
 
-    def test_(self):
+# NOTE: This test case is no longer relevant since greediness is now controlled
+# by the MiniRegex class
+#     def test_greedy_matches(self):
+#         # Represents "ab|a"
+#         table = {0: [("char: a", 1)],
+#                  1: [("char: b", 2)],
+#                  2: [("epsilon", 6)],
+#                  3: [("char: a", 4)],
+#                  4: [("epsilon", 6)],
+#                  5: [("epsilon", 0), ("epsilon", 3)],
+#                  6: []}
+#         nfa = table_to_nfa(table, 5, 6)
+#         runner = DFASimulator(nfa)
+#         self.assertTupleEqual((0, 0), runner.advance_multi_state('a'))
+#         self.assertTupleEqual((0, 1), runner.advance_multi_state('b'))
+
+    def test_overlap_doesnt_affect_dfa_sim(self):
         # Table for:  'abc|bcde'
         table = {14: [("epsilon", 0), ("epsilon", 6)],
                  6: [("char: b", 7)],
@@ -52,13 +57,20 @@ class DFASimTest(ut.TestCase):
                  1: [("char: b", 3)],
                  3: [("char: c", 5)],
                  5: [("epsilon", 15)]}
-        # table = {14: ({}, [0, 6]), 6: ({'b': 7}, []), 7: ({'c': 9}, []),
-        #          9: ({'d': 11}, []), 11: ({'e': 13}, []), 13: ({}, [15]),
-        #          15: ({}, []), 0: ({'a': 1}, []), 1: ({'b': 3}, []),
-        #          3: ({'c': 5}, []), 5: ({}, [15])}
         nfa = table_to_nfa(table, 14, 15)
-        matcher = DFASimulator(nfa)
-        match = matcher.advance_multi_state('a')
-        self.assertIsNone(match)
-        self.assertListEqual([iter.substate.id for iter in
-                             matcher.dfa.get_iterators()], [1])
+        runner = DFASimulator(nfa)
+        runner.advance_state('a')
+        match_end = runner.check_match()
+        self.assertIsNone(match_end)
+
+        self.assertListEqual([iter.node.id for iter in
+                             runner.dfa.get_substates()], [1])
+
+        runner.advance_state('b')
+        runner.advance_state('c')
+        match_end = runner.check_match()
+        self.assertEqual(match_end, 3)
+
+        runner.advance_state('d')
+        match_end = runner.check_match()
+        self.assertIsNone(match_end)

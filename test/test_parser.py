@@ -56,21 +56,6 @@ class ParserTest(ut.TestCase):
         actual = nfa_to_table(result_nfa.start)
         self.assertEqual(expected, actual)
 
-    # def test_elem_plus_equal_to_elem_elem_kstar(self):
-    #     """ (a+) is equivalent to (aa*)
-    #     """
-    #     expected = {0: [("char: a", 1)],
-    #                 1: [("epsilon", 0), ("epsilon", 3)],
-    #                 3: []}
-
-    #     # represents = "a"
-    #     nfa = table_to_nfa({0: [("char: a", 1)], 1: []}, 0, 1)
-    #     id_alloc = CounterStub(2)
-    #     result_nfa = TC.repeater(nfa, '+', id_alloc)
-    #     actual = nfa_to_table(result_nfa.start)
-    #     print(actual)
-    #     self.assertEqual(expected, actual)
-
     def test_parenthesis_builds_inner_nfa_first(self):
         # Note the difference between "(ab)*" and ab*
         re_parser1 = parser.RegexParser(Tokenizer("(ab)*"))

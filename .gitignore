@@ -6,6 +6,7 @@ tests/__pycache__*
 *backup.py
 
 *.swp
+*.swo
 
 .ipynb_checkpoints
 
