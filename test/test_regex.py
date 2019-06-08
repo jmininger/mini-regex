@@ -42,7 +42,7 @@ class RegexEngineTest(ut.TestCase):
         regex = RE.MiniRegex(pattern)
         search_str = "abcde"
         matches = regex.find_all_matches(search_str)
-        result = [match.get?!?jedi=0, _span() for match in matches]?!? (list1, *_*list2*_*, msg=None) ?!?jedi?!?
+        result = [match.get_span() for match in matches]
         self.assertListEqual(result, [(0, 2)])
 
     def test_matches_occuring_later(self):
@@ -52,6 +52,7 @@ class RegexEngineTest(ut.TestCase):
         matches = regex.find_all_matches(search_str)
         result = [match.get_span() for match in matches]
         self.assertListEqual(result, [(1, 4)])
+
 
     def test_char_class(self):
         pattern = "[1-9]+"
